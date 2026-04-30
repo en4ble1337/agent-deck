@@ -394,32 +394,33 @@
 }
 
 .home-usage-chart-button {
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  border: 1px solid var(--border-subtle);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-stronger);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 120ms ease, transform 120ms ease, border-color 120ms ease;
+  transition: background-color 120ms ease, color 120ms ease;
   padding: 0;
 }
 
-.home-usage-chart-button:hover {
-  background: var(--surface-card-strong);
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
+.home-usage-chart-button:hover,
+.home-usage-chart-button:focus-visible {
+  color: var(--text-strong);
+  background: var(--surface-hover);
+  transform: none;
+  box-shadow: none;
 }
 
 .home-usage-chart-button:disabled {
-  opacity: 0.38;
+  opacity: 0.55;
   cursor: default;
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--text-faint);
-  border-color: var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
   transform: none;
 }
 
