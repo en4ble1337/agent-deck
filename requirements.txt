@@ -1,4 +1,0 @@
-# Python helper scripts only.
-# The product runtime is Tauri v2 + React/TypeScript + Rust/SQLite.
-# Keep this file so setup and verification commands have a stable target:
-#   pip install -r requirements.txt

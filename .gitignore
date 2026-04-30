@@ -1,48 +1,44 @@
-# Python helpers
-__pycache__/
-*.py[cod]
-*$py.class
-.venv/
-venv/
-env/
-*.egg-info/
-
-# Node / Vite / Tauri frontend
-node_modules/
-dist/
-.vite/
-*.tsbuildinfo
+# Logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
-# Rust / Tauri backend
-target/
-src-tauri/target/
-**/*.rs.bk
-
-# Tests and browser verification
-coverage/
-playwright-report/
-test-results/
-.nyc_output/
-
-# Environment
-.env
-.env.local
+node_modules
+dist
+dist-ssr
 *.local
+src-tauri/tauri.ios.local.conf.json
+.testflight.local.env
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+/release-artifacts
+CodexMonitor.zip
+.codex-worktrees/
+.codexmonitor/
+.agent/
+.agents/
+.codex/
+.claude/
+.cursor/
+public/assets/material-icons/
+archived-rundeck-project/
+sources/
+screenshot*.png
+preview-screenshot*.png
 
-# Project
-.tmp/
-*.log
+# Nix
+result
+skills-lock.json
