@@ -129,6 +129,49 @@ describe("Home", () => {
     expect(screen.getByText("No recent output loaded yet.")).toBeTruthy();
   });
 
+  it("uses recent output as tile context when the thread title is generic", () => {
+    render(
+      <Home
+        {...baseProps}
+        workspaces={[
+          {
+            id: "workspace-1",
+            name: "Codex Limits",
+            path: "/tmp/codex-limits",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        threadsByWorkspace={{
+          "workspace-1": [
+            {
+              id: "thread-1",
+              name: "hi",
+              updatedAt: Date.now(),
+              createdAt: Date.now() - 120000,
+              modelId: "gpt-5.2-codex",
+            },
+          ],
+        }}
+        latestAgentRuns={[
+          {
+            message:
+              "Absolutely. This repo is a lightweight Codex usage tracker so you can see your limits over time.",
+            source: "agent",
+            timestamp: Date.now(),
+            projectName: "Codex Limits",
+            groupName: null,
+            workspaceId: "workspace-1",
+            threadId: "thread-1",
+            isProcessing: false,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("This repo is a lightweight Codex usage tracker so you can see your...")).toBeTruthy();
+  });
+
   it("filters session tiles from the dashboard counters", () => {
     render(<Home {...baseProps} />);
 

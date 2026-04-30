@@ -2,6 +2,7 @@ import type { CSSProperties, MouseEvent } from "react";
 
 import type { ThreadSummary } from "../../../types";
 import { getThreadStatusClass, type ThreadStatusById } from "../../../utils/threadStatus";
+import { deriveThreadContextTitle } from "../../../utils/threadDisplay";
 
 function hashString(value: string) {
   let hash = 0;
@@ -135,8 +136,9 @@ export function ThreadRow({
     : undefined;
   const effectiveWorkspaceLabel = depth > 0 ? null : workspaceLabel;
   const normalizedPreview = preview?.trim() ?? "";
+  const displayName = deriveThreadContextTitle(thread.name, normalizedPreview, thread.name);
   const showPreview =
-    normalizedPreview.length > 0 && normalizedPreview !== thread.name.trim();
+    normalizedPreview.length > 0 && normalizedPreview !== displayName.trim();
   const contextLabel = badge ?? modelBadge;
   const canPin = depth === 0;
   const isPinned = canPin && isThreadPinned(workspaceId, thread.id);
@@ -176,7 +178,9 @@ export function ThreadRow({
       <span className={`thread-status ${statusClass}`} aria-hidden />
       <div className="thread-content">
         <div className="thread-headline">
-          <span className="thread-name">{thread.name}</span>
+          <span className="thread-name" title={displayName}>
+            {displayName}
+          </span>
         </div>
         {showPreview && (
           <div className="thread-preview" title={normalizedPreview}>

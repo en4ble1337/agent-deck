@@ -4,6 +4,7 @@ import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle";
 import type { ThreadSummary, WorkspaceInfo } from "@/types";
 import type { ThreadStatusById } from "@/utils/threadStatus";
 import { formatRelativeTime } from "@/utils/time";
+import { deriveThreadContextTitle } from "@/utils/threadDisplay";
 import { getWorkspaceAccent } from "@/utils/workspaceAccent";
 import type { LatestAgentRun } from "../homeTypes";
 
@@ -187,14 +188,15 @@ function buildRealSessions({
         const latest = latestBySession.get(sessionId);
         const threadStatus = threadStatusById[thread.id];
         const status = getSessionStatus(threadStatus);
-        const title = thread.name.trim() || "Untitled session";
+        const threadName = thread.name.trim() || "Untitled session";
         const latestMessage = latest?.message.trim() ?? "";
         const preview =
           latestMessage && latest?.source !== "thread-preview"
             ? latestMessage
-            : latestMessage && latestMessage !== title
+            : latestMessage && latestMessage !== threadName
               ? latestMessage
               : "No recent output loaded yet.";
+        const title = deriveThreadContextTitle(threadName, latestMessage);
         const attentionLabel = !workspace.connected
           ? "offline"
           : threadStatus?.hasUnread

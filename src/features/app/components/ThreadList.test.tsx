@@ -113,6 +113,26 @@ describe("ThreadList", () => {
     expect(screen.getByText("Latest useful context from the conversation")).toBeTruthy();
   });
 
+  it("uses latest context as the row title when the thread title is generic", () => {
+    const genericThread = { ...thread, name: "hi" };
+    const { container } = render(
+      <ThreadList
+        {...baseProps}
+        unpinnedRows={[{ thread: genericThread, depth: 0 }]}
+        lastAgentMessageByThread={{
+          "thread-1": {
+            text: "This repo is a lightweight Codex usage tracker for limit monitoring.",
+            timestamp: 1200,
+          },
+        }}
+      />,
+    );
+
+    expect(container.querySelector(".thread-name")?.textContent).toBe(
+      "This repo is a lightweight Codex usage tracker for limit monitoring.",
+    );
+  });
+
   it("loads older threads when a cursor is available", () => {
     const onLoadOlderThreads = vi.fn();
     render(
