@@ -50,6 +50,7 @@ import { useMainAppWorktreeState } from "@app/hooks/useMainAppWorktreeState";
 import { useMainAppWorkspaceActions } from "@app/hooks/useMainAppWorkspaceActions";
 import { useMainAppWorkspaceLifecycle } from "@app/hooks/useMainAppWorkspaceLifecycle";
 import { useMainAppMobileThreadRefresh } from "@app/hooks/useMainAppMobileThreadRefresh";
+import { useWorktreeSessionIntegration } from "@app/hooks/useWorktreeSessionIntegration";
 import { useHomeAccount } from "@app/hooks/useHomeAccount";
 import type {
   ComposerEditorSettings,
@@ -144,6 +145,7 @@ export default function MainApp() {
     activeWorkspaceId,
     setActiveWorkspaceId,
     addWorkspace,
+    addRemoteWorkspace,
     addWorkspaceFromPath,
     addWorkspaceFromGitUrl,
     addWorkspacesFromPaths,
@@ -586,6 +588,13 @@ export default function MainApp() {
     connectWorkspace,
     startThreadForWorkspace,
     sendUserMessageToThread,
+  });
+  useWorktreeSessionIntegration({
+    workspaces,
+    threadsByWorkspace,
+    threadStatusById,
+    removeThread,
+    onDebug: addDebugEntry,
   });
   const {
     activeWorkspaceRef,
@@ -1121,6 +1130,7 @@ export default function MainApp() {
     workspace: {
       activeWorkspace,
       activeWorkspaceId,
+      workspaces,
       isNewAgentDraftMode,
       startingDraftThreadWorkspaceId,
       threadsByWorkspace,
@@ -1256,6 +1266,7 @@ export default function MainApp() {
 
   const {
     handleAddWorkspace,
+    handleConnectRemoteWorkspace,
     handleAddWorkspaceFromGitUrl,
     handleAddAgent,
     handleAddWorktreeAgent,
@@ -1270,6 +1281,7 @@ export default function MainApp() {
     workspaceActions: {
       isCompact,
       addWorkspace,
+      addRemoteWorkspace,
       addWorkspaceFromPath,
       addWorkspaceFromGitUrl,
       addWorkspacesFromPaths,
@@ -1712,6 +1724,7 @@ export default function MainApp() {
     openInitGitRepoPrompt: modalActions.openInitGitRepoPrompt,
     startUncommittedReview,
     handleAddWorkspace,
+    handleConnectRemoteWorkspace,
     openWorkspaceFromUrlPrompt,
     handleAddAgent,
     handleAddWorktreeAgent,

@@ -11,6 +11,7 @@ const baseProps = {
   onOpenSettings: vi.fn(),
   onAddWorkspace: vi.fn(),
   onAddWorkspaceFromUrl: vi.fn(),
+  onConnectRemoteWorkspace: vi.fn(),
   workspaces: [],
   threadsByWorkspace: {},
   threadStatusById: {},

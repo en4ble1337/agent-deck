@@ -46,6 +46,14 @@
   --surface-bubble-user: rgba(77, 153, 255, 0.45);
   --surface-context-core: rgba(10, 14, 20, 0.9);
   --surface-popover: rgba(10, 14, 20, 0.995);
+  --surface-glass-highlight: rgba(255, 255, 255, 0.055);
+  --surface-glass-lowlight: rgba(0, 0, 0, 0.22);
+  --accent-primary: #8bbdff;
+  --accent-secondary: #64e0bd;
+  --accent-tertiary: #f4b26a;
+  --shadow-soft: rgba(0, 0, 0, 0.18);
+  --shadow-elevated: rgba(0, 0, 0, 0.34);
+  --shadow-accent-soft: rgba(92, 168, 255, 0.16);
   --surface-review: rgba(255, 144, 200, 0.1);
   --border-review: rgba(255, 144, 200, 0.35);
   --surface-review-active: rgba(255, 144, 200, 0.18);

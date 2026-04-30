@@ -23,6 +23,14 @@
   --surface-bubble-user: rgba(77, 153, 255, 0.5);
   --surface-context-core: rgba(32, 35, 42, 0.92);
   --surface-popover: rgba(32, 35, 42, 0.98);
+  --surface-glass-highlight: rgba(255, 255, 255, 0.065);
+  --surface-glass-lowlight: rgba(0, 0, 0, 0.16);
+  --accent-primary: #93c5fd;
+  --accent-secondary: #6ee7c8;
+  --accent-tertiary: #f4b26a;
+  --shadow-soft: rgba(0, 0, 0, 0.16);
+  --shadow-elevated: rgba(0, 0, 0, 0.26);
+  --shadow-accent-soft: rgba(120, 205, 255, 0.14);
 }
 
 :root[data-theme="dim"] .app.reduced-transparency {

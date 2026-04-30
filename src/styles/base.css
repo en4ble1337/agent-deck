@@ -57,7 +57,7 @@ html[data-runtime="browser"][data-theme="dim"] body {
 :root[data-theme="light"] body,
 html[data-runtime="browser"][data-theme="light"],
 html[data-runtime="browser"][data-theme="light"] body {
-  background: #eef1f6;
+  background: #ffffff;
 }
 
 #root {
@@ -73,8 +73,10 @@ html[data-runtime="browser"][data-theme="light"] body {
   display: grid;
   grid-template-columns: var(--sidebar-width, 280px) 1fr;
   background:
-    radial-gradient(circle at 24% 0%, rgba(88, 166, 255, 0.14), transparent 34%),
-    linear-gradient(135deg, #070a10 0%, #0d111b 54%, #090b11 100%);
+    linear-gradient(112deg, rgba(100, 224, 189, 0.08) 0%, transparent 30%),
+    linear-gradient(148deg, transparent 58%, rgba(244, 178, 106, 0.08) 100%),
+    radial-gradient(ellipse at 50% -18%, rgba(139, 189, 255, 0.16), transparent 42%),
+    linear-gradient(135deg, #070a10 0%, #0d111b 52%, #080b12 100%);
   border-radius: 0;
   overflow: hidden;
   position: relative;
@@ -103,22 +105,59 @@ html[data-runtime="browser"][data-theme="light"] body {
   --cm-border-contrast: color-mix(in srgb, var(--border-subtle) 100%, transparent);
   --cm-border-accent: color-mix(in srgb, var(--border-accent) 36%, transparent);
   --cm-border-accent-strong: color-mix(in srgb, var(--border-accent) 46%, transparent);
+  --cm-elevation-soft: 0 12px 34px var(--shadow-soft, rgba(0, 0, 0, 0.18));
+  --cm-elevation-strong: 0 22px 56px var(--shadow-elevated, rgba(0, 0, 0, 0.34));
+  --cm-inner-highlight: inset 0 1px 0 var(--surface-glass-highlight, rgba(255, 255, 255, 0.05));
+  --cm-inner-lowlight: inset 0 -1px 0 var(--surface-glass-lowlight, rgba(0, 0, 0, 0.2));
   transition: grid-template-columns 220ms ease;
   font-family: var(--ui-font-family);
+}
+
+.app::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035), transparent 18%, transparent 82%, rgba(255, 255, 255, 0.025)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 18%);
+  mix-blend-mode: screen;
+  opacity: 0.72;
+  z-index: 0;
 }
 
 :root[data-theme="dim"] .app,
 html[data-runtime="browser"][data-theme="dim"] .app {
   background:
-    radial-gradient(circle at 24% 0%, rgba(100, 180, 255, 0.12), transparent 34%),
+    linear-gradient(112deg, rgba(110, 231, 200, 0.08) 0%, transparent 30%),
+    linear-gradient(148deg, transparent 58%, rgba(244, 178, 106, 0.08) 100%),
+    radial-gradient(ellipse at 50% -18%, rgba(147, 197, 253, 0.14), transparent 42%),
     linear-gradient(135deg, #20242c 0%, #252a33 54%, #1d2129 100%);
 }
 
 :root[data-theme="light"] .app,
 html[data-runtime="browser"][data-theme="light"] .app {
-  background:
-    radial-gradient(circle at 24% 0%, rgba(77, 153, 255, 0.16), transparent 34%),
-    linear-gradient(135deg, #eef1f6 0%, #f6f8fb 54%, #e9edf4 100%);
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .app::before,
+html[data-runtime="browser"][data-theme="light"] .app::before {
+  display: none;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]),
+  :root:not([data-theme]) body {
+    background: #ffffff;
+  }
+
+  :root:not([data-theme]) .app {
+    background: #ffffff;
+  }
+
+  :root:not([data-theme]) .app::before {
+    display: none;
+  }
 }
 
 .app.is-resizing,

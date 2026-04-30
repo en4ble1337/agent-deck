@@ -212,7 +212,6 @@ function SidebarWorkspaceEntry({
       isCollapsed={isCollapsed}
       addMenuOpen={addMenuOpen}
       addMenuWidth={addMenuWidth}
-      onSelectWorkspace={onSelectWorkspace}
       onShowWorkspaceMenu={onShowWorkspaceMenu}
       onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
       onConnectWorkspace={onConnectWorkspace}
@@ -238,7 +237,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<Plus aria-hidden />}
             >
-              New agent
+              New session
             </PopoverMenuItem>
             <PopoverMenuItem
               className="workspace-add-option"
@@ -249,7 +248,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<GitBranch aria-hidden />}
             >
-              New worktree agent
+              New worktree session
             </PopoverMenuItem>
             <PopoverMenuItem
               className="workspace-add-option"
@@ -260,7 +259,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<Copy aria-hidden />}
             >
-              New clone agent
+              New clone session
             </PopoverMenuItem>
           </PopoverSurface>,
           document.body,
@@ -281,7 +280,7 @@ function SidebarWorkspaceEntry({
           <span className={`thread-status ${draftStatusClass}`} aria-hidden />
           <div className="thread-content">
             <div className="thread-headline">
-              <span className="thread-name">New Agent</span>
+              <span className="thread-name">New Session</span>
             </div>
           </div>
         </div>

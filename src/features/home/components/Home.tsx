@@ -18,6 +18,7 @@ import type {
 type HomeProps = {
   onAddWorkspace: () => void;
   onAddWorkspaceFromUrl: () => void;
+  onConnectRemoteWorkspace: () => void;
   workspaces: WorkspaceInfo[];
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   threadStatusById: ThreadStatusById;
@@ -48,6 +49,7 @@ type HomeProps = {
 export function Home({
   onAddWorkspace,
   onAddWorkspaceFromUrl,
+  onConnectRemoteWorkspace,
   workspaces,
   threadsByWorkspace,
   threadStatusById,
@@ -86,6 +88,7 @@ export function Home({
       <HomeActions
         onAddWorkspace={onAddWorkspace}
         onAddWorkspaceFromUrl={onAddWorkspaceFromUrl}
+        onConnectRemoteWorkspace={onConnectRemoteWorkspace}
       />
       <HomeUsageSection
         accountInfo={accountInfo}

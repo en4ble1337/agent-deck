@@ -1,4 +1,4 @@
-import { useMemo, type RefObject } from "react";
+import { useCallback, useMemo, type RefObject } from "react";
 import type {
   AppSettings,
   ConversationItem,
@@ -14,7 +14,12 @@ import { useComposerController } from "@app/hooks/useComposerController";
 import { useComposerInsert } from "@app/hooks/useComposerInsert";
 import { useWorkspaceFileListing } from "@app/hooks/useWorkspaceFileListing";
 import { useWorkspaceAgentMd } from "@/features/workspaces/hooks/useWorkspaceAgentMd";
-import { useWorkspaceHome } from "@/features/workspaces/hooks/useWorkspaceHome";
+import {
+  buildWorktreeBranch,
+  normalizeWorktreeName,
+  useWorkspaceHome,
+} from "@/features/workspaces/hooks/useWorkspaceHome";
+import { generateRunMetadata } from "@services/tauri";
 
 const RECENT_THREAD_LIMIT = 8;
 
@@ -31,6 +36,7 @@ type UseMainAppComposerWorkspaceStateArgs = {
   workspace: {
     activeWorkspace: WorkspaceInfo | null;
     activeWorkspaceId: string | null;
+    workspaces: WorkspaceInfo[];
     isNewAgentDraftMode: boolean;
     startingDraftThreadWorkspaceId: string | null;
     threadsByWorkspace: Record<string, ThreadSummary[]>;
@@ -112,6 +118,7 @@ export function useMainAppComposerWorkspaceState({
   const {
     activeWorkspace,
     activeWorkspaceId,
+    workspaces,
     isNewAgentDraftMode,
     startingDraftThreadWorkspaceId,
     threadsByWorkspace,
@@ -222,11 +229,60 @@ export function useMainAppComposerWorkspaceState({
         ? "Paused — waiting for plan accept/changes."
         : null;
 
+  const prepareWorkspaceForNewSession = useCallback(
+    async (text: string) => {
+      if (!activeWorkspace || !isNewAgentDraftMode) {
+        return activeWorkspace;
+      }
+      const parentWorkspace =
+        (activeWorkspace.kind ?? "main") === "worktree"
+          ? workspaces.find((entry) => entry.id === activeWorkspace.parentId) ?? null
+          : activeWorkspace;
+      if (!parentWorkspace || (parentWorkspace.kind ?? "main") === "worktree") {
+        return activeWorkspace;
+      }
+
+      let branchBase: string | null = null;
+      let displayName: string | null = null;
+      try {
+        const metadata = await generateRunMetadata(parentWorkspace.id, text);
+        branchBase = normalizeWorktreeName(metadata?.worktreeName) ?? null;
+        displayName = metadata?.title?.trim() || null;
+      } catch {
+        // Fall back to local prompt-based branch naming.
+      }
+      const branch = `${branchBase ?? buildWorktreeBranch(text)}-${Math.random()
+        .toString(36)
+        .slice(2, 6)}`;
+      const worktree = await addWorktreeAgent(parentWorkspace, branch, {
+        activate: true,
+        displayName,
+      });
+      if (!worktree) {
+        return null;
+      }
+      try {
+        await handleWorktreeCreated?.(worktree, parentWorkspace);
+      } catch {
+        // Setup script failures are surfaced elsewhere; the session can still start.
+      }
+      return worktree;
+    },
+    [
+      activeWorkspace,
+      addWorktreeAgent,
+      handleWorktreeCreated,
+      isNewAgentDraftMode,
+      workspaces,
+    ],
+  );
+
   const composerState = useComposerController({
     activeThreadId,
     activeTurnId,
     activeWorkspaceId,
     activeWorkspace,
+    prepareWorkspaceForNewSession,
     isProcessing,
     isReviewing,
     queueFlushPaused,

@@ -31,6 +31,7 @@ export function useWorkspaceController({
 
   const {
     requestWorkspacePaths,
+    requestRemoteWorkspacePaths,
     mobileRemoteWorkspacePathPrompt,
     updateMobileRemoteWorkspacePathInput,
     cancelMobileRemoteWorkspacePathPrompt,
@@ -82,6 +83,17 @@ export function useWorkspaceController({
     return result.firstAdded;
   }, [appSettings.backendMode, requestWorkspacePaths, runAddWorkspacesFromPaths]);
 
+  const addRemoteWorkspace = useCallback(async (): Promise<WorkspaceInfo | null> => {
+    const paths = await requestRemoteWorkspacePaths();
+    if (paths.length === 0) {
+      return null;
+    }
+    const result = await runAddWorkspacesFromPaths(paths, {
+      rememberMobileRemoteRecents: true,
+    });
+    return result.firstAdded;
+  }, [requestRemoteWorkspacePaths, runAddWorkspacesFromPaths]);
+
   const removeWorkspace = useCallback(
     async (workspaceId: string) => {
       const confirmed = await confirmWorkspaceRemoval(workspaces, workspaceId);
@@ -115,6 +127,7 @@ export function useWorkspaceController({
   return {
     ...workspaceCore,
     addWorkspace,
+    addRemoteWorkspace,
     addWorkspacesFromPaths,
     mobileRemoteWorkspacePathPrompt,
     updateMobileRemoteWorkspacePathInput,

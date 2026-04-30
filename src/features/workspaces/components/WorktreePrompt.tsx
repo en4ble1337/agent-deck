@@ -105,14 +105,14 @@ export function WorktreePrompt({
   return (
     <ModalShell
       className="worktree-modal"
-      ariaLabel="New worktree agent"
+      ariaLabel="New worktree session"
       onBackdropClick={() => {
         if (!isBusy) {
           onCancel();
         }
       }}
     >
-      <div className="ds-modal-title worktree-modal-title">New worktree agent</div>
+      <div className="ds-modal-title worktree-modal-title">New worktree session</div>
       <div className="ds-modal-subtitle worktree-modal-subtitle">
         Create a worktree under "{workspaceName}".
       </div>

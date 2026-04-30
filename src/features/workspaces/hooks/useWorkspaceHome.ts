@@ -50,7 +50,7 @@ type UseWorkspaceHomeOptions = {
   addWorktreeAgent: (
     workspace: WorkspaceInfo,
     branch: string,
-    options?: { activate?: boolean },
+    options?: { activate?: boolean; displayName?: string | null },
   ) => Promise<WorkspaceInfo | null>;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   startThreadForWorkspace: (
@@ -81,7 +81,7 @@ type WorkspaceHomeState = {
   submittingByWorkspace: Record<string, boolean>;
 };
 
-const DEFAULT_MODE: WorkspaceRunMode = "local";
+const DEFAULT_MODE: WorkspaceRunMode = "worktree";
 const EMPTY_SELECTIONS: Record<string, number> = {};
 const MAX_TITLE_LENGTH = 56;
 
@@ -145,7 +145,7 @@ const resolveWorktreePrefix = (prompt: string) => {
   return matched?.prefix ?? "feat";
 };
 
-const buildWorktreeBranch = (prompt: string) => {
+export const buildWorktreeBranch = (prompt: string) => {
   const prefix = resolveWorktreePrefix(prompt);
   const base = prompt
     .toLowerCase()
@@ -161,7 +161,7 @@ const buildWorktreeBranch = (prompt: string) => {
 const resolveModelLabel = (model: ModelOption | null, fallback: string) =>
   model?.displayName?.trim() || model?.model?.trim() || fallback;
 
-const normalizeWorktreeName = (value: string | null | undefined) => {
+export const normalizeWorktreeName = (value: string | null | undefined) => {
   if (!value) {
     return null;
   }

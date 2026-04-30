@@ -284,6 +284,54 @@ describe("useQueuedSend", () => {
     );
   });
 
+  it("prepares an isolated workspace for draft session first sends", async () => {
+    const worktreeWorkspace: WorkspaceInfo = {
+      ...workspace,
+      id: "worktree-1",
+      name: "feat/test",
+      path: "/tmp/worktree",
+      connected: false,
+      kind: "worktree",
+      parentId: workspace.id,
+      worktree: { branch: "feat/test" },
+    };
+    const prepareWorkspaceForNewSession = vi
+      .fn()
+      .mockResolvedValue(worktreeWorkspace);
+    const connectWorkspace = vi.fn().mockResolvedValue(undefined);
+    const startThreadForWorkspace = vi.fn().mockResolvedValue("thread-worktree");
+    const sendUserMessageToThread = vi.fn().mockResolvedValue(undefined);
+    const options = makeOptions({
+      activeThreadId: null,
+      prepareWorkspaceForNewSession,
+      connectWorkspace,
+      startThreadForWorkspace,
+      sendUserMessageToThread,
+    });
+    const { result } = renderHook((props) => useQueuedSend(props), {
+      initialProps: options,
+    });
+
+    await act(async () => {
+      await result.current.handleSend("Build the thing", ["img-1"]);
+    });
+
+    expect(prepareWorkspaceForNewSession).toHaveBeenCalledWith(
+      "Build the thing",
+      ["img-1"],
+    );
+    expect(connectWorkspace).toHaveBeenCalledWith(worktreeWorkspace);
+    expect(startThreadForWorkspace).toHaveBeenCalledWith("worktree-1");
+    expect(sendUserMessageToThread).toHaveBeenCalledWith(
+      worktreeWorkspace,
+      "thread-worktree",
+      "Build the thing",
+      ["img-1"],
+      { appMentions: [], sendIntent: "default" },
+    );
+    expect(options.sendUserMessage).not.toHaveBeenCalled();
+  });
+
   it("ignores images for queued review messages and blocks while reviewing", async () => {
     const options = makeOptions();
     const { result, rerender } = renderHook(

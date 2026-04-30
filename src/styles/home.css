@@ -36,8 +36,9 @@
 
 .home-title {
   font-size: 44px;
-  font-weight: 600;
+  font-weight: 750;
   letter-spacing: 0;
+  color: var(--text-strong);
 }
 
 .home-subtitle {
@@ -154,8 +155,10 @@
   align-items: center;
   padding: 2px 10px;
   border-radius: 999px;
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background:
+    linear-gradient(180deg, var(--surface-glass-highlight, rgba(255, 255, 255, 0.04)), transparent),
+    var(--surface-card);
+  border: 1px solid var(--cm-border-default);
   min-width: 0;
   max-width: 100%;
 }
@@ -197,8 +200,10 @@
   gap: 2px;
   padding: 2px;
   border-radius: 999px;
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background:
+    linear-gradient(180deg, var(--surface-glass-highlight, rgba(255, 255, 255, 0.04)), transparent),
+    var(--surface-card);
+  border: 1px solid var(--cm-border-default);
 }
 
 .home-usage-toggle-button {
@@ -214,7 +219,9 @@
 }
 
 .home-usage-toggle-button.is-active {
-  background: var(--surface-card-strong);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-primary, #8bbdff) 14%, transparent), transparent),
+    var(--surface-card-strong);
   color: var(--text-stronger);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
@@ -273,11 +280,13 @@
 
 .home-usage-card {
   padding: 12px 14px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(98, 176, 255, 0.15), transparent 60%),
+  border-radius: 8px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary, #62b0ff) 18%, transparent), transparent 60%),
     var(--surface-card);
-  border: 1px solid var(--border-subtle);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--cm-border-default);
+  box-shadow:
+    var(--cm-inner-highlight),
+    0 12px 26px var(--shadow-soft, rgba(0, 0, 0, 0.18));
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -292,12 +301,12 @@
 }
 
 .home-usage-card.is-up {
-  background: linear-gradient(135deg, rgba(88, 190, 255, 0.18), transparent 58%),
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-secondary, #58beff) 20%, transparent), transparent 58%),
     var(--surface-card);
 }
 
 .home-usage-card.is-down {
-  background: linear-gradient(135deg, rgba(255, 177, 124, 0.16), transparent 58%),
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-tertiary, #ffb17c) 20%, transparent), transparent 58%),
     var(--surface-card);
 }
 
@@ -773,12 +782,12 @@
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--session-workspace-accent) 10%, transparent),
-      rgba(255, 255, 255, 0.015) 42%
+      color-mix(in srgb, var(--surface-card-strong) 2%, transparent) 42%
     ),
-    rgba(10, 14, 22, 0.42);
+    var(--surface-card);
   box-shadow:
     inset 0 2px 0 color-mix(in srgb, var(--session-workspace-accent) 68%, transparent),
-    0 10px 24px rgba(0, 0, 0, 0.2);
+    0 10px 24px var(--shadow-soft, rgba(0, 0, 0, 0.2));
   overflow: hidden;
 }
 
@@ -812,7 +821,7 @@
   box-shadow:
     inset 0 2px 0 var(--session-workspace-accent),
     inset 0 0 0 1px rgba(115, 188, 255, 0.36),
-    0 14px 28px rgba(0, 0, 0, 0.24);
+    0 14px 28px var(--shadow-elevated, rgba(0, 0, 0, 0.24));
 }
 
 .session-tile-body {
@@ -936,7 +945,7 @@
   height: 30px;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: rgba(4, 8, 14, 0.58);
+  background: var(--surface-control);
   color: var(--text-stronger);
   font: inherit;
   font-size: 12px;
@@ -950,14 +959,14 @@
 
 .session-tile-command input:focus {
   border-color: var(--border-accent);
-  background: rgba(4, 8, 14, 0.78);
+  background: var(--surface-control-hover);
 }
 
 .session-tile-command button {
   height: 30px;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--surface-control);
   color: var(--text-muted);
   cursor: pointer;
   font: inherit;
@@ -969,6 +978,7 @@
 .session-tile-command button:hover:not(:disabled),
 .session-tile-command button:focus-visible {
   border-color: var(--border-accent);
+  background: var(--surface-control-hover);
   color: var(--text-stronger);
   outline: none;
 }
@@ -1308,14 +1318,15 @@
   }
 
   .home-add-workspaces-button,
-  .home-add-workspace-from-url-button {
+  .home-add-workspace-from-url-button,
+  .home-connect-remote-workspace-button {
     grid-column: 1 / -1;
   }
 }
 
 .home-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   align-items: center;
   width: 100%;
@@ -1336,6 +1347,9 @@
 }
 
 .home-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 18px;
   line-height: 1;
 }

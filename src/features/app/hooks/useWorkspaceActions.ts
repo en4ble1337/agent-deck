@@ -6,6 +6,7 @@ import type { DebugEntry, WorkspaceInfo } from "../../../types";
 type Params = {
   isCompact: boolean;
   addWorkspace: () => Promise<WorkspaceInfo | null>;
+  addRemoteWorkspace: () => Promise<WorkspaceInfo | null>;
   addWorkspaceFromPath: (path: string) => Promise<WorkspaceInfo | null>;
   addWorkspaceFromGitUrl: (
     url: string,
@@ -27,6 +28,7 @@ type Params = {
 export function useWorkspaceActions({
   isCompact,
   addWorkspace,
+  addRemoteWorkspace,
   addWorkspaceFromPath,
   addWorkspaceFromGitUrl,
   addWorkspacesFromPaths,
@@ -68,6 +70,25 @@ export function useWorkspaceActions({
       alert(`Failed to add workspace.\n\n${message}`);
     }
   }, [addWorkspace, handleWorkspaceAdded, onDebug]);
+
+  const handleConnectRemoteWorkspace = useCallback(async () => {
+    try {
+      const workspace = await addRemoteWorkspace();
+      if (workspace) {
+        handleWorkspaceAdded(workspace);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      onDebug({
+        id: `${Date.now()}-client-add-remote-workspace-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "workspace/add-remote error",
+        payload: message,
+      });
+      alert(`Failed to connect remote workspace.\n\n${message}`);
+    }
+  }, [addRemoteWorkspace, handleWorkspaceAdded, onDebug]);
 
   const handleAddWorkspacesFromPaths = useCallback(
     async (paths: string[]) => {
@@ -185,6 +206,7 @@ ${message}`);
 
   return {
     handleAddWorkspace,
+    handleConnectRemoteWorkspace,
     handleAddWorkspacesFromPaths,
     handleAddWorkspaceFromPath,
     handleAddWorkspaceFromGitUrl,

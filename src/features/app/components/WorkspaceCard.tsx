@@ -11,7 +11,6 @@ type WorkspaceCardProps = {
   isCollapsed: boolean;
   addMenuOpen: boolean;
   addMenuWidth: number;
-  onSelectWorkspace: (id: string) => void;
   onShowWorkspaceMenu: (event: MouseEvent, workspaceId: string) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onConnectWorkspace: (workspace: WorkspaceInfo) => void;
@@ -32,7 +31,6 @@ export function WorkspaceCard({
   isCollapsed,
   addMenuOpen,
   addMenuWidth,
-  onSelectWorkspace,
   onShowWorkspaceMenu,
   onToggleWorkspaceCollapse,
   onConnectWorkspace,
@@ -43,6 +41,9 @@ export function WorkspaceCard({
   const accentStyle = {
     "--workspace-accent": getWorkspaceAccent(workspace.id, workspace.name),
   } as CSSProperties;
+  const toggleWorkspaceCollapse = () => {
+    onToggleWorkspaceCollapse(workspace.id, !isCollapsed);
+  };
 
   return (
     <div className="workspace-card" style={accentStyle}>
@@ -50,12 +51,12 @@ export function WorkspaceCard({
         className={`workspace-row ${isActive ? "active" : ""}`}
         role="button"
         tabIndex={0}
-        onClick={() => onSelectWorkspace(workspace.id)}
+        onClick={toggleWorkspaceCollapse}
         onContextMenu={(event) => onShowWorkspaceMenu(event, workspace.id)}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            onSelectWorkspace(workspace.id);
+            toggleWorkspaceCollapse();
           }
         }}
       >
@@ -67,7 +68,7 @@ export function WorkspaceCard({
                 className={`workspace-toggle ${isCollapsed ? "" : "expanded"}`}
                 onClick={(event) => {
                   event.stopPropagation();
-                  onToggleWorkspaceCollapse(workspace.id, !isCollapsed);
+                  toggleWorkspaceCollapse();
                 }}
                 data-tauri-drag-region="false"
                 aria-label={isCollapsed ? "Show agents" : "Hide agents"}

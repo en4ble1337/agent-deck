@@ -44,14 +44,14 @@ export function ClonePrompt({
   return (
     <ModalShell
       className="clone-modal"
-      ariaLabel="New clone agent"
+      ariaLabel="New clone session"
       onBackdropClick={() => {
         if (!isBusy) {
           onCancel();
         }
       }}
     >
-      <div className="ds-modal-title clone-modal-title">New clone agent</div>
+      <div className="ds-modal-title clone-modal-title">New clone session</div>
       <div className="ds-modal-subtitle clone-modal-subtitle">
         Create a new working copy of "{workspaceName}".
       </div>

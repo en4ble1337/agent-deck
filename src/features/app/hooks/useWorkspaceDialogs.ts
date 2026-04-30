@@ -207,6 +207,11 @@ export function useWorkspaceDialogs() {
     return pickWorkspacePaths();
   }, [requestMobileRemoteWorkspacePaths]);
 
+  const requestRemoteWorkspacePaths = useCallback(
+    () => requestMobileRemoteWorkspacePaths(),
+    [requestMobileRemoteWorkspacePaths],
+  );
+
   const showAddWorkspacesResult = useCallback(
     async (result: AddWorkspacesFromPathsResult) => {
       const hasIssues =
@@ -326,6 +331,7 @@ export function useWorkspaceDialogs() {
 
   return {
     requestWorkspacePaths,
+    requestRemoteWorkspacePaths,
     mobileRemoteWorkspacePathPrompt,
     updateMobileRemoteWorkspacePathInput,
     cancelMobileRemoteWorkspacePathPrompt,

@@ -4,10 +4,15 @@
   gap: 10px;
   -webkit-app-region: no-drag;
   padding: 10px var(--main-panel-padding) 20px;
-  border-top: 1px solid var(--cm-border-default);
-  background: var(--cm-surface-composer);
-  backdrop-filter: blur(18px) saturate(1.1);
-  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  border-top: 1px solid color-mix(in srgb, var(--cm-border-default) 82%, var(--accent-secondary, #64e0bd));
+  background:
+    linear-gradient(180deg, var(--surface-glass-highlight, rgba(255, 255, 255, 0.04)), transparent),
+    var(--cm-surface-composer);
+  backdrop-filter: blur(24px) saturate(1.18);
+  -webkit-backdrop-filter: blur(24px) saturate(1.18);
+  box-shadow:
+    var(--cm-inner-highlight),
+    0 -18px 44px rgba(0, 0, 0, 0.16);
   grid-column: 1;
   grid-row: 3;
 }
@@ -27,8 +32,10 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: 16px;
-  background: var(--cm-surface-panel);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, var(--surface-glass-highlight, rgba(255, 255, 255, 0.04)), transparent),
+    var(--cm-surface-panel);
   border: 1px solid var(--cm-border-emphasis);
 }
 
@@ -102,9 +109,11 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
-  border-radius: 16px;
+  border-radius: 8px;
   border: 1px solid var(--cm-border-emphasis);
-  background: var(--cm-surface-panel);
+  background:
+    linear-gradient(180deg, var(--surface-glass-highlight, rgba(255, 255, 255, 0.04)), transparent),
+    var(--cm-surface-panel);
 }
 
 .composer-followup-title {
@@ -147,11 +156,27 @@
 .composer-input-area {
   position: relative;
   min-width: 0;
-  border: 1px solid var(--cm-border-heavy);
-  background: var(--cm-surface-panel-elevated);
-  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--cm-border-heavy) 86%, var(--accent-primary, #8bbdff));
+  background:
+    linear-gradient(180deg, var(--surface-glass-highlight, rgba(255, 255, 255, 0.04)), transparent 42%),
+    var(--cm-surface-panel-elevated);
+  border-radius: 8px;
   padding: 10px 12px 10px 10px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow:
+    var(--cm-inner-highlight),
+    0 14px 34px var(--shadow-soft, rgba(0, 0, 0, 0.18));
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.composer-input-area:focus-within {
+  border-color: color-mix(in srgb, var(--border-accent) 68%, transparent);
+  box-shadow:
+    var(--cm-inner-highlight),
+    0 0 0 2px var(--border-accent-soft),
+    0 18px 44px var(--shadow-accent-soft, rgba(92, 168, 255, 0.16));
 }
 
 .composer-input-area.is-drag-over {
@@ -192,7 +217,9 @@
 
 .composer-attach {
   border: 1px solid var(--cm-border-strong);
-  background: var(--cm-surface-panel-solid);
+  background:
+    linear-gradient(180deg, var(--surface-glass-highlight, rgba(255, 255, 255, 0.04)), transparent),
+    var(--cm-surface-panel-solid);
   color: var(--text-muted);
   padding: 0;
   border-radius: 999px;

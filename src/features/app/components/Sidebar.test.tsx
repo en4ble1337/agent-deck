@@ -155,6 +155,54 @@ describe("Sidebar", () => {
     expect(creditsLabel.textContent ?? "").toContain("120");
   });
 
+  it("toggles workspace collapse from the workspace row without selecting it", () => {
+    const onSelectWorkspace = vi.fn();
+    const onToggleWorkspaceCollapse = vi.fn();
+
+    render(
+      <Sidebar
+        {...baseProps}
+        onSelectWorkspace={onSelectWorkspace}
+        onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Collapsed Project",
+            path: "/tmp/collapsed",
+            connected: true,
+            settings: { sidebarCollapsed: true },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Collapsed Project",
+                path: "/tmp/collapsed",
+                connected: true,
+                settings: { sidebarCollapsed: true },
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    const row = screen.getByText("Collapsed Project").closest(".workspace-row");
+    expect(row).toBeTruthy();
+    if (!row) {
+      throw new Error("Missing workspace row");
+    }
+
+    fireEvent.click(row);
+
+    expect(onSelectWorkspace).not.toHaveBeenCalled();
+    expect(onToggleWorkspaceCollapse).toHaveBeenCalledWith("ws-1", false);
+  });
+
   it("opens the account menu from the bottom rail", () => {
     render(
       <Sidebar
@@ -655,7 +703,7 @@ describe("Sidebar", () => {
     expect(icon?.getAttribute("class") ?? "").toContain("spinning");
   });
 
-  it("shows a top New Agent draft row and selects workspace when clicked", () => {
+  it("shows a top New Session draft row and selects workspace when clicked", () => {
     const onSelectWorkspace = vi.fn();
     const props = {
       ...baseProps,
@@ -691,7 +739,7 @@ describe("Sidebar", () => {
 
     render(<Sidebar {...props} />);
 
-    const draftRow = screen.getByRole("button", { name: /new agent/i });
+    const draftRow = screen.getByRole("button", { name: /new session/i });
     expect(draftRow).toBeTruthy();
     expect(draftRow.className).toContain("thread-row-draft");
     expect(draftRow.className).toContain("active");

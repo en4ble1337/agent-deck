@@ -15,6 +15,7 @@ export function useComposerController({
   activeTurnId,
   activeWorkspaceId,
   activeWorkspace,
+  prepareWorkspaceForNewSession,
   isProcessing,
   isReviewing,
   queueFlushPaused = false,
@@ -38,6 +39,10 @@ export function useComposerController({
   activeTurnId: string | null;
   activeWorkspaceId: string | null;
   activeWorkspace: WorkspaceInfo | null;
+  prepareWorkspaceForNewSession?: (
+    text: string,
+    images: string[],
+  ) => Promise<WorkspaceInfo | null>;
   isProcessing: boolean;
   isReviewing: boolean;
   queueFlushPaused?: boolean;
@@ -60,6 +65,10 @@ export function useComposerController({
     threadId: string,
     text: string,
     images?: string[],
+    options?: {
+      appMentions?: AppMention[];
+      sendIntent?: ComposerSendIntent;
+    },
   ) => Promise<void | SendMessageResult>;
   startFork: (text: string) => Promise<void>;
   startReview: (text: string) => Promise<void>;
@@ -103,6 +112,7 @@ export function useComposerController({
     followUpMessageBehavior,
     appsEnabled,
     activeWorkspace,
+    prepareWorkspaceForNewSession,
     connectWorkspace,
     startThreadForWorkspace,
     sendUserMessage,

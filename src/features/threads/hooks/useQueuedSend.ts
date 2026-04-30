@@ -18,6 +18,10 @@ type UseQueuedSendOptions = {
   followUpMessageBehavior: FollowUpMessageBehavior;
   appsEnabled: boolean;
   activeWorkspace: WorkspaceInfo | null;
+  prepareWorkspaceForNewSession?: (
+    text: string,
+    images: string[],
+  ) => Promise<WorkspaceInfo | null>;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   startThreadForWorkspace: (
     workspaceId: string,
@@ -34,6 +38,10 @@ type UseQueuedSendOptions = {
     threadId: string,
     text: string,
     images?: string[],
+    options?: {
+      appMentions?: AppMention[];
+      sendIntent?: ComposerSendIntent;
+    },
   ) => Promise<void | SendMessageResult>;
   startFork: (text: string) => Promise<void>;
   startReview: (text: string) => Promise<void>;
@@ -115,6 +123,7 @@ export function useQueuedSend({
   followUpMessageBehavior,
   appsEnabled,
   activeWorkspace,
+  prepareWorkspaceForNewSession,
   connectWorkspace,
   startThreadForWorkspace,
   sendUserMessage,
@@ -282,6 +291,25 @@ export function useQueuedSend({
         clearActiveImages();
         return;
       }
+      if (!activeThreadId && activeWorkspace && prepareWorkspaceForNewSession) {
+        const workspace = await prepareWorkspaceForNewSession(trimmed, nextImages);
+        if (!workspace) {
+          return;
+        }
+        if (!workspace.connected) {
+          await connectWorkspace(workspace);
+        }
+        const threadId = await startThreadForWorkspace(workspace.id);
+        if (!threadId) {
+          return;
+        }
+        await sendUserMessageToThread(workspace, threadId, trimmed, nextImages, {
+          appMentions: nextMentions,
+          sendIntent: effectiveIntent,
+        });
+        clearActiveImages();
+        return;
+      }
       const sendResult =
         nextMentions.length > 0
           ? await sendUserMessage(trimmed, nextImages, nextMentions, {
@@ -314,6 +342,9 @@ export function useQueuedSend({
       steerEnabled,
       runSlashCommand,
       sendUserMessage,
+      sendUserMessageToThread,
+      startThreadForWorkspace,
+      prepareWorkspaceForNewSession,
     ],
   );
 

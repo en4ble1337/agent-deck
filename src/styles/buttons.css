@@ -5,7 +5,7 @@
 
 button {
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 600;
@@ -20,18 +20,22 @@ button:disabled {
 }
 
 .primary {
-  background: linear-gradient(135deg, #62b7ff, #4fe3a3);
+  background: linear-gradient(135deg, var(--accent-primary, #62b7ff), var(--accent-secondary, #4fe3a3));
   color: #0b0f1a;
-  box-shadow: 0 12px 22px var(--shadow-accent);
+  box-shadow:
+    0 12px 24px var(--shadow-accent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36);
 }
 
 .secondary {
-  background: var(--surface-card-strong);
+  background:
+    linear-gradient(180deg, var(--surface-glass-highlight, rgba(255, 255, 255, 0.04)), transparent),
+    var(--surface-card-strong);
   color: inherit;
 }
 
 .ghost {
-  background: transparent;
+  background: color-mix(in srgb, var(--surface-card) 32%, transparent);
   color: var(--text-muted);
   border: 1px solid var(--border-strong);
 }

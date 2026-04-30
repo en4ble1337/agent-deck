@@ -34,6 +34,7 @@ describe("useWorkspaceActions telemetry", () => {
       useWorkspaceActions({
         isCompact: false,
         addWorkspace: vi.fn(async () => null),
+        addRemoteWorkspace: vi.fn(async () => null),
         addWorkspaceFromPath: vi.fn(async () => null),
         addWorkspaceFromGitUrl: vi.fn(async () => null),
         addWorkspacesFromPaths: vi.fn(async () => null),

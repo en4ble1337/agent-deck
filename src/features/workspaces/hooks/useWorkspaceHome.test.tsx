@@ -46,6 +46,22 @@ const models: ModelOption[] = [
 ];
 
 describe("useWorkspaceHome", () => {
+  it("defaults new main workspace runs to worktree mode", () => {
+    const { result } = renderHook(() =>
+      useWorkspaceHome({
+        activeWorkspace: workspace,
+        models,
+        selectedModelId: null,
+        addWorktreeAgent: vi.fn(),
+        connectWorkspace: vi.fn(),
+        startThreadForWorkspace: vi.fn(),
+        sendUserMessageToThread: vi.fn(),
+      }),
+    );
+
+    expect(result.current.runMode).toBe("worktree");
+  });
+
   it("uses provider model name for worktree runs", async () => {
     const addWorktreeAgent = vi.fn().mockResolvedValue(worktreeWorkspace);
     const connectWorkspace = vi.fn().mockResolvedValue(undefined);
@@ -117,6 +133,10 @@ describe("useWorkspaceHome", () => {
         sendUserMessageToThread,
       }),
     );
+
+    act(() => {
+      result.current.setRunMode("local");
+    });
 
     await act(async () => {
       const started = await result.current.startRun(["img-1"]);
@@ -242,6 +262,7 @@ describe("useWorkspaceHome", () => {
     );
 
     act(() => {
+      result.current.setRunMode("local");
       result.current.setDraft("Local prompt");
     });
 
