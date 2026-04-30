@@ -737,8 +737,8 @@
 
 .session-dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 12px;
 }
 
 .session-dashboard-empty {
@@ -761,7 +761,7 @@
 .session-tile {
   position: relative;
   --session-workspace-accent: #8fb3ff;
-  min-height: 158px;
+  min-height: 224px;
   border: 1px solid var(--border-subtle);
   border-top-color: color-mix(
     in srgb,
@@ -817,9 +817,9 @@
 
 .session-tile-body {
   width: 100%;
-  min-height: 158px;
+  min-height: 224px;
   border: 0;
-  padding: 13px 14px 13px 18px;
+  padding: 14px 15px 14px 18px;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -916,34 +916,19 @@
 .session-tile-output {
   color: var(--text-muted);
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 1.48;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 5;
   overflow: hidden;
 }
 
 .session-tile-command {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 10px;
+  margin-top: auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   cursor: default;
-  opacity: 0;
-  transform: translateY(7px);
-  pointer-events: none;
-  transition: opacity 120ms ease, transform 120ms ease;
-  z-index: 2;
-}
-
-.session-tile:hover .session-tile-command,
-.session-tile:focus-within .session-tile-command {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
 }
 
 .session-tile-command input {
@@ -957,7 +942,6 @@
   font-size: 12px;
   padding: 0 10px;
   outline: none;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.28);
 }
 
 .session-tile-command input::placeholder {
@@ -980,7 +964,6 @@
   font-size: 12px;
   font-weight: 650;
   padding: 0 10px;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.24);
 }
 
 .session-tile-command button:hover:not(:disabled),
