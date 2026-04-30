@@ -38,6 +38,7 @@ type ThreadStatusLookup = Record<string, { isProcessing?: boolean } | undefined>
 export type ResumeHydrationPlan = {
   keepLocalProcessing: boolean;
   lastMessageText: string | null;
+  lastMessageSource: "agent" | "thread-preview" | null;
   lastMessageTimestamp: number | null;
   mergedItems: ConversationItem[];
   processingTimestamp: number;
@@ -141,6 +142,7 @@ export function buildResumeHydrationPlan({
     return {
       keepLocalProcessing: false,
       lastMessageText: null,
+      lastMessageSource: null,
       lastMessageTimestamp: null,
       mergedItems: localItems,
       processingTimestamp: Date.now(),
@@ -187,10 +189,17 @@ export function buildResumeHydrationPlan({
     lastAgentMessage && lastAgentMessage.kind === "message"
       ? lastAgentMessage.text
       : preview;
+  const lastMessageSource =
+    lastAgentMessage && lastAgentMessage.kind === "message"
+      ? "agent"
+      : preview
+        ? "thread-preview"
+        : null;
 
   return {
     keepLocalProcessing,
     lastMessageText: lastMessageText || null,
+    lastMessageSource,
     lastMessageTimestamp: lastMessageText ? getThreadTimestamp(thread) : null,
     mergedItems,
     processingTimestamp,

@@ -200,12 +200,6 @@ export function useThreadMessaging({
         threadId,
         timestamp,
       });
-      dispatch({
-        type: "setLastAgentMessage",
-        threadId,
-        text: finalText,
-        timestamp,
-      });
       markProcessing(threadId, true);
       safeMessageActivity();
       onDebug?.({

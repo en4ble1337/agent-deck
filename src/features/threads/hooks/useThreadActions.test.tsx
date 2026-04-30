@@ -318,6 +318,7 @@ describe("useThreadActions", () => {
       threadId: "thread-2",
       text: "Hello!",
       timestamp: 999,
+      source: "agent",
     });
   });
 

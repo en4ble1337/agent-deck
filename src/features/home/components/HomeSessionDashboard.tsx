@@ -188,6 +188,13 @@ function buildRealSessions({
         const threadStatus = threadStatusById[thread.id];
         const status = getSessionStatus(threadStatus);
         const title = thread.name.trim() || "Untitled session";
+        const latestMessage = latest?.message.trim() ?? "";
+        const preview =
+          latestMessage && latest?.source !== "thread-preview"
+            ? latestMessage
+            : latestMessage && latestMessage !== title
+              ? latestMessage
+              : "No recent output loaded yet.";
         const attentionLabel = !workspace.connected
           ? "offline"
           : threadStatus?.hasUnread
@@ -205,7 +212,7 @@ function buildRealSessions({
           status,
           runtimeLabel: formatRuntime(thread.createdAt, thread.updatedAt),
           lastActivityLabel: formatRelativeTime(thread.updatedAt),
-          preview: latest?.message.trim() || title,
+          preview,
           attentionLabel,
           source: "real" as const,
         };

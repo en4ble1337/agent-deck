@@ -87,6 +87,48 @@ describe("Home", () => {
     expect(screen.getAllByText("Running").length).toBeGreaterThan(0);
   });
 
+  it("does not echo a title-sized thread preview as the tile output", () => {
+    render(
+      <Home
+        {...baseProps}
+        workspaces={[
+          {
+            id: "workspace-1",
+            name: "Cars Henry",
+            path: "/tmp/cars-henry",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        threadsByWorkspace={{
+          "workspace-1": [
+            {
+              id: "thread-1",
+              name: "hi",
+              updatedAt: Date.now(),
+              createdAt: Date.now() - 120000,
+              modelId: "gpt-5.2-codex",
+            },
+          ],
+        }}
+        latestAgentRuns={[
+          {
+            message: "hi",
+            source: "thread-preview",
+            timestamp: Date.now(),
+            projectName: "Cars Henry",
+            groupName: null,
+            workspaceId: "workspace-1",
+            threadId: "thread-1",
+            isProcessing: false,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("No recent output loaded yet.")).toBeTruthy();
+  });
+
   it("filters session tiles from the dashboard counters", () => {
     render(<Home {...baseProps} />);
 

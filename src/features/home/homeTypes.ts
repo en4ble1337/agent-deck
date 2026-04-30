@@ -1,5 +1,6 @@
 export type LatestAgentRun = {
   message: string;
+  source?: "agent" | "thread-preview";
   timestamp: number;
   projectName: string;
   groupName?: string | null;

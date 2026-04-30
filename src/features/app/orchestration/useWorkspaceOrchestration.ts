@@ -11,6 +11,7 @@ type ThreadSummary = {
 type LastAgentMessage = {
   text: string;
   timestamp: number;
+  source?: "agent" | "thread-preview";
 };
 
 type ThreadStatus = {
@@ -53,6 +54,7 @@ export function useWorkspaceInsightsOrchestration({
     const entries: Array<{
       threadId: string;
       message: string;
+      source?: "agent" | "thread-preview";
       timestamp: number;
       projectName: string;
       groupName?: string | null;
@@ -70,6 +72,7 @@ export function useWorkspaceInsightsOrchestration({
         entries.push({
           threadId: thread.id,
           message: entry.text,
+          source: entry.source,
           timestamp: entry.timestamp,
           projectName: workspace.name,
           groupName: getWorkspaceGroupName(workspace.id),

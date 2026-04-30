@@ -280,6 +280,7 @@ describe("useThreadItemEvents", () => {
       threadId: "thread-1",
       text: "Done",
       timestamp: 1234,
+      source: "agent",
     });
     expect(recordThreadActivity).toHaveBeenCalledWith("ws-1", "thread-1", 1234);
     expect(safeMessageActivity).toHaveBeenCalled();

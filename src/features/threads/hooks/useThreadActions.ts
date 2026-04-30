@@ -125,12 +125,18 @@ export function useThreadActions({
   );
 
   const dispatchPreviewMessage = useCallback(
-    (threadId: string, text: string, timestamp: number) => {
+    (
+      threadId: string,
+      text: string,
+      timestamp: number,
+      source: "agent" | "thread-preview" = "thread-preview",
+    ) => {
       dispatch({
         type: "setLastAgentMessage",
         threadId,
         text,
         timestamp,
+        source,
       });
     },
     [dispatch],
@@ -311,6 +317,7 @@ export function useThreadActions({
               threadId,
               hydrationPlan.lastMessageText,
               hydrationPlan.lastMessageTimestamp,
+              hydrationPlan.lastMessageSource ?? "thread-preview",
             );
           }
         }
@@ -814,6 +821,7 @@ export function useThreadActions({
             threadId,
             text: preview,
             timestamp: getThreadTimestamp(thread),
+            source: "thread-preview",
           });
         });
       } catch (error) {

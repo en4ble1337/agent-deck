@@ -187,6 +187,7 @@ export function useThreadItemEvents({
         threadId,
         text,
         timestamp,
+        source: "agent",
       });
       recordThreadActivity(workspaceId, threadId, timestamp);
       safeMessageActivity();

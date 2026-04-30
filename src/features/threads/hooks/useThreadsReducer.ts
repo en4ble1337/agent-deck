@@ -45,7 +45,10 @@ export type ThreadState = {
   rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null>;
   accountByWorkspace: Record<string, AccountSnapshot | null>;
   planByThread: Record<string, TurnPlan | null>;
-  lastAgentMessageByThread: Record<string, { text: string; timestamp: number }>;
+  lastAgentMessageByThread: Record<
+    string,
+    { text: string; timestamp: number; source?: "agent" | "thread-preview" }
+  >;
 };
 
 export type ThreadAction =
@@ -175,6 +178,7 @@ export type ThreadAction =
       threadId: string;
       text: string;
       timestamp: number;
+      source?: "agent" | "thread-preview";
     };
 
 const emptyItems: Record<string, ConversationItem[]> = {};

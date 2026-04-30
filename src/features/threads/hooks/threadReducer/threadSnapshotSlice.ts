@@ -7,7 +7,15 @@ export function reduceThreadSnapshots(
   switch (action.type) {
     case "setLastAgentMessage":
       if (
-        state.lastAgentMessageByThread[action.threadId]?.timestamp >= action.timestamp
+        state.lastAgentMessageByThread[action.threadId]?.source === "agent" &&
+        action.source !== "agent"
+      ) {
+        return state;
+      }
+      if (
+        state.lastAgentMessageByThread[action.threadId]?.timestamp >=
+          action.timestamp &&
+        state.lastAgentMessageByThread[action.threadId]?.source === action.source
       ) {
         return state;
       }
@@ -15,7 +23,11 @@ export function reduceThreadSnapshots(
         ...state,
         lastAgentMessageByThread: {
           ...state.lastAgentMessageByThread,
-          [action.threadId]: { text: action.text, timestamp: action.timestamp },
+          [action.threadId]: {
+            text: action.text,
+            timestamp: action.timestamp,
+            source: action.source,
+          },
         },
       };
     case "setThreadTokenUsage":
