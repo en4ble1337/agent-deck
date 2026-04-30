@@ -5,17 +5,24 @@ export function reduceThreadSnapshots(
   action: ThreadAction,
 ): ThreadState {
   switch (action.type) {
-    case "setLastAgentMessage":
+    case "setLastAgentMessage": {
+      const existingLastMessage = state.lastAgentMessageByThread[action.threadId];
       if (
-        state.lastAgentMessageByThread[action.threadId]?.source === "agent" &&
+        existingLastMessage?.source === "agent" &&
         action.source !== "agent"
       ) {
         return state;
       }
       if (
-        state.lastAgentMessageByThread[action.threadId]?.timestamp >=
-          action.timestamp &&
-        state.lastAgentMessageByThread[action.threadId]?.source === action.source
+        existingLastMessage?.timestamp > action.timestamp &&
+        existingLastMessage?.source === action.source
+      ) {
+        return state;
+      }
+      if (
+        existingLastMessage?.timestamp === action.timestamp &&
+        existingLastMessage?.source === action.source &&
+        existingLastMessage?.text === action.text
       ) {
         return state;
       }
@@ -30,6 +37,7 @@ export function reduceThreadSnapshots(
           },
         },
       };
+    }
     case "setThreadTokenUsage":
       return {
         ...state,

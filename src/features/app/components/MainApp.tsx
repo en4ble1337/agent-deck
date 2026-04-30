@@ -1672,12 +1672,12 @@ export default function MainApp() {
     usageWorkspaceId,
     usageWorkspaceOptions,
     onUsageWorkspaceChange: setUsageWorkspaceId,
-    onSendHomeMessageToThread: async (workspaceId, threadId, text) => {
+    onSendHomeMessageToThread: async (workspaceId, threadId, text, images) => {
       const workspace = workspacesById.get(workspaceId);
       if (!workspace) {
         return;
       }
-      await sendUserMessageToThread(workspace, threadId, text, []);
+      await sendUserMessageToThread(workspace, threadId, text, images);
     },
     gitState,
     selectedServiceTier: selectedServiceTier ?? null,

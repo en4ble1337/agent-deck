@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import type { Dispatch } from "react";
 import { buildConversationItem } from "@utils/threadItems";
 import type { CollabAgentRef } from "@/types";
@@ -50,6 +50,13 @@ export function useThreadItemEvents({
   onUserMessageCreated,
   onReviewExited,
 }: UseThreadItemEventsOptions) {
+  const liveAgentTextByItemRef = useRef<Record<string, string>>({});
+
+  const getLiveAgentItemKey = useCallback(
+    (threadId: string, itemId: string) => `${threadId}:${itemId}`,
+    [],
+  );
+
   const handleItemUpdate = useCallback(
     (
       workspaceId: string,
@@ -149,8 +156,27 @@ export function useThreadItemEvents({
         delta,
         hasCustomName,
       });
+      const timestamp = Date.now();
+      const liveKey = getLiveAgentItemKey(threadId, itemId);
+      const text = `${liveAgentTextByItemRef.current[liveKey] ?? ""}${delta}`;
+      liveAgentTextByItemRef.current[liveKey] = text;
+      if (text.trim()) {
+        dispatch({
+          type: "setThreadTimestamp",
+          workspaceId,
+          threadId,
+          timestamp,
+        });
+        dispatch({
+          type: "setLastAgentMessage",
+          threadId,
+          text,
+          timestamp,
+          source: "agent",
+        });
+      }
     },
-    [dispatch, getCustomName, markProcessing],
+    [dispatch, getCustomName, getLiveAgentItemKey, markProcessing],
   );
 
   const onAgentMessageCompleted = useCallback(
@@ -189,6 +215,7 @@ export function useThreadItemEvents({
         timestamp,
         source: "agent",
       });
+      delete liveAgentTextByItemRef.current[getLiveAgentItemKey(threadId, itemId)];
       recordThreadActivity(workspaceId, threadId, timestamp);
       safeMessageActivity();
       if (threadId !== activeThreadId) {
@@ -199,6 +226,7 @@ export function useThreadItemEvents({
       activeThreadId,
       dispatch,
       getCustomName,
+      getLiveAgentItemKey,
       recordThreadActivity,
       safeMessageActivity,
     ],

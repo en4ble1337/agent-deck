@@ -246,6 +246,56 @@ describe("threadReducer", () => {
     expect(reviewing).toBe(base);
   });
 
+  it("updates the latest agent message when same-timestamp live text changes", () => {
+    const base: ThreadState = {
+      ...initialState,
+      lastAgentMessageByThread: {
+        "thread-1": {
+          text: "Hello",
+          timestamp: 1000,
+          source: "agent",
+        },
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "setLastAgentMessage",
+      threadId: "thread-1",
+      text: "Hello world",
+      timestamp: 1000,
+      source: "agent",
+    });
+
+    expect(next.lastAgentMessageByThread["thread-1"]).toEqual({
+      text: "Hello world",
+      timestamp: 1000,
+      source: "agent",
+    });
+  });
+
+  it("keeps an agent message when a thread preview arrives later", () => {
+    const base: ThreadState = {
+      ...initialState,
+      lastAgentMessageByThread: {
+        "thread-1": {
+          text: "Actual agent output",
+          timestamp: 1000,
+          source: "agent",
+        },
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "setLastAgentMessage",
+      threadId: "thread-1",
+      text: "Thread title",
+      timestamp: 2000,
+      source: "thread-preview",
+    });
+
+    expect(next).toBe(base);
+  });
+
   it("tracks request user input queue", () => {
     const request = {
       workspace_id: "ws-1",

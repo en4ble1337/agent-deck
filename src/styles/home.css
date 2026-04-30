@@ -54,6 +54,11 @@
   margin-inline: auto;
 }
 
+.app.layout-desktop .home > .session-dashboard {
+  width: 100%;
+  max-width: none;
+}
+
 .home-hero {
   text-align: center;
   display: flex;
@@ -774,8 +779,10 @@
 
 .session-dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  grid-auto-rows: clamp(224px, 22vw, 300px);
   gap: 12px;
+  align-items: stretch;
 }
 
 .session-dashboard-empty {
@@ -798,7 +805,8 @@
 .session-tile {
   position: relative;
   --session-workspace-accent: #8fb3ff;
-  min-height: 224px;
+  min-height: 0;
+  height: 100%;
   border: 1px solid var(--border-subtle);
   border-top-color: color-mix(
     in srgb,
@@ -854,7 +862,8 @@
 
 .session-tile-body {
   width: 100%;
-  min-height: 224px;
+  min-height: 0;
+  height: 100%;
   border: 0;
   padding: 14px 15px 14px 18px;
   background: transparent;
@@ -952,6 +961,7 @@
 
 .session-tile-output {
   color: var(--text-muted);
+  flex: 1 1 auto;
   font-size: 13px;
   line-height: 1.48;
   display: -webkit-box;
@@ -965,7 +975,24 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
+  align-items: end;
   cursor: default;
+}
+
+.session-tile-command-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.session-tile-command .composer-attachments {
+  gap: 5px;
+  margin: 0;
+}
+
+.session-tile-command .composer-attachment {
+  max-width: 100%;
 }
 
 .session-tile-command input {

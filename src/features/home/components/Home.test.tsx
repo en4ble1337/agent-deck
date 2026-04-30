@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Home } from "./Home";
 
@@ -34,6 +34,39 @@ const baseProps = {
   onSelectThread: vi.fn(),
   onSendMessageToThread: vi.fn(),
 };
+
+function dispatchPaste(
+  element: HTMLElement,
+  items: Array<{ type: string; getAsFile: () => File | null }>,
+  text = "",
+) {
+  const event = new Event("paste", { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "clipboardData", {
+    value: {
+      getData: (type: string) => (type === "text/plain" ? text : ""),
+      items,
+    },
+  });
+  element.dispatchEvent(event);
+}
+
+function setMockFileReader() {
+  const OriginalFileReader = window.FileReader;
+  class MockFileReader {
+    result: string | ArrayBuffer | null = null;
+    onload: ((ev: ProgressEvent<FileReader>) => unknown) | null = null;
+    onerror: ((ev: ProgressEvent<FileReader>) => unknown) | null = null;
+
+    readAsDataURL(file: File) {
+      this.result = `data:${file.type};base64,MOCK`;
+      this.onload?.({} as ProgressEvent<FileReader>);
+    }
+  }
+  window.FileReader = MockFileReader as typeof FileReader;
+  return () => {
+    window.FileReader = OriginalFileReader;
+  };
+}
 
 describe("Home", () => {
   it("renders session tiles and lets you focus a real thread", () => {
@@ -173,6 +206,60 @@ describe("Home", () => {
     expect(screen.getByText("This repo is a lightweight Codex usage tracker so you can see your...")).toBeTruthy();
   });
 
+  it("uses the newest latest-agent entry when a session has multiple previews", () => {
+    const now = Date.now();
+    render(
+      <Home
+        {...baseProps}
+        workspaces={[
+          {
+            id: "workspace-1",
+            name: "Agent Deck",
+            path: "/tmp/agent-deck",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        threadsByWorkspace={{
+          "workspace-1": [
+            {
+              id: "thread-1",
+              name: "hi",
+              updatedAt: now - 30000,
+              createdAt: now - 120000,
+              modelId: "gpt-5.2-codex",
+            },
+          ],
+        }}
+        latestAgentRuns={[
+          {
+            message: "Newest current answer",
+            source: "agent",
+            timestamp: now,
+            projectName: "Agent Deck",
+            groupName: null,
+            workspaceId: "workspace-1",
+            threadId: "thread-1",
+            isProcessing: true,
+          },
+          {
+            message: "Older stale answer",
+            source: "agent",
+            timestamp: now - 1000,
+            projectName: "Agent Deck",
+            groupName: null,
+            workspaceId: "workspace-1",
+            threadId: "thread-1",
+            isProcessing: false,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getAllByText("Newest current answer").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Older stale answer")).toBeNull();
+  });
+
   it("filters session tiles from the dashboard counters", () => {
     render(<Home {...baseProps} />);
 
@@ -186,6 +273,91 @@ describe("Home", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /sessions/i }));
     expect(within(grid).getByText("Codex Monitor foundation")).toBeTruthy();
+  });
+
+  it("prioritizes active sessions and only keeps a small idle tail", () => {
+    const now = Date.now();
+    render(
+      <Home
+        {...baseProps}
+        workspaces={[
+          {
+            id: "workspace-1",
+            name: "CodexMonitor",
+            path: "/tmp/workspace-1",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        threadsByWorkspace={{
+          "workspace-1": [
+            {
+              id: "idle-0",
+              name: "Idle 0",
+              updatedAt: now,
+              createdAt: now - 120000,
+            },
+            {
+              id: "idle-1",
+              name: "Idle 1",
+              updatedAt: now - 1,
+              createdAt: now - 120000,
+            },
+            {
+              id: "idle-2",
+              name: "Idle 2",
+              updatedAt: now - 2,
+              createdAt: now - 120000,
+            },
+            {
+              id: "idle-3",
+              name: "Idle 3",
+              updatedAt: now - 3,
+              createdAt: now - 120000,
+            },
+            {
+              id: "idle-4",
+              name: "Idle 4",
+              updatedAt: now - 4,
+              createdAt: now - 120000,
+            },
+            {
+              id: "idle-5",
+              name: "Idle 5",
+              updatedAt: now - 5,
+              createdAt: now - 120000,
+            },
+            {
+              id: "running",
+              name: "Running work",
+              updatedAt: now - 1000,
+              createdAt: now - 120000,
+            },
+            {
+              id: "attention",
+              name: "Needs response",
+              updatedAt: now - 2000,
+              createdAt: now - 120000,
+            },
+          ],
+        }}
+        threadStatusById={{
+          running: { isProcessing: true },
+          attention: { hasUnread: true },
+        }}
+      />,
+    );
+
+    const grid = screen.getByLabelText("Agent sessions");
+    const titles = Array.from(grid.querySelectorAll<HTMLElement>(".session-tile-title")).map(
+      (element) => element.textContent,
+    );
+
+    expect(titles.slice(0, 2)).toEqual(["Needs response", "Running work"]);
+    expect(within(grid).getByText("Idle 0")).toBeTruthy();
+    expect(within(grid).getByText("Idle 3")).toBeTruthy();
+    expect(within(grid).queryByText("Idle 4")).toBeNull();
+    expect(screen.getByRole("button", { name: /8sessions/i })).toBeTruthy();
   });
 
   it("filters session tiles by workspace", () => {
@@ -292,8 +464,76 @@ describe("Home", () => {
       "workspace-1",
       "thread-1",
       "Can you continue?",
+      [],
     );
     expect((input as HTMLInputElement).value).toBe("");
+  });
+
+  it("attaches pasted images to a tile message and sends them directly", async () => {
+    const restoreFileReader = setMockFileReader();
+    const onSendMessageToThread = vi.fn().mockResolvedValue(undefined);
+    render(
+      <Home
+        {...baseProps}
+        workspaces={[
+          {
+            id: "workspace-1",
+            name: "CodexMonitor",
+            path: "/tmp/workspace-1",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        threadsByWorkspace={{
+          "workspace-1": [
+            {
+              id: "thread-1",
+              name: "Dashboard refresh",
+              updatedAt: Date.now(),
+              createdAt: Date.now() - 120000,
+              modelId: "gpt-5.2-codex",
+            },
+          ],
+        }}
+        latestAgentRuns={[
+          {
+            message: "Latest useful reply",
+            timestamp: Date.now(),
+            projectName: "CodexMonitor",
+            groupName: null,
+            workspaceId: "workspace-1",
+            threadId: "thread-1",
+            isProcessing: false,
+          },
+        ]}
+        onSendMessageToThread={onSendMessageToThread}
+      />,
+    );
+
+    const input = screen.getByLabelText("Message Dashboard refresh");
+    const image = new File(["data"], "paste.png", { type: "image/png" });
+    const imageItem = { type: "image/png", getAsFile: () => image };
+
+    await act(async () => {
+      dispatchPaste(input, [imageItem]);
+    });
+
+    expect(screen.getByText("Pasted image")).toBeTruthy();
+    const form = input.closest("form");
+    if (!form) {
+      throw new Error("Tile message form missing");
+    }
+    const sendButton = within(form).getByRole("button", { name: "Send" });
+    fireEvent.click(sendButton);
+
+    expect(onSendMessageToThread).toHaveBeenCalledWith(
+      "workspace-1",
+      "thread-1",
+      "",
+      ["data:image/png;base64,MOCK"],
+    );
+    expect(screen.queryByText("Pasted image")).toBeNull();
+    restoreFileReader();
   });
 
   it("shows first-run fixture tiles when there are no sessions", () => {

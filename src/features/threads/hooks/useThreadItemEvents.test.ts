@@ -213,7 +213,8 @@ describe("useThreadItemEvents", () => {
     );
   });
 
-  it("marks processing and appends agent deltas", () => {
+  it("marks processing and promotes live agent deltas into the latest preview", () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(4321);
     const { result, dispatch, markProcessing } = makeOptions();
 
     act(() => {
@@ -222,6 +223,14 @@ describe("useThreadItemEvents", () => {
         threadId: "thread-1",
         itemId: "assistant-1",
         delta: "Hello",
+      });
+    });
+    act(() => {
+      result.current.onAgentMessageDelta({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        delta: " world",
       });
     });
 
@@ -239,6 +248,28 @@ describe("useThreadItemEvents", () => {
       delta: "Hello",
       hasCustomName: false,
     });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadTimestamp",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      timestamp: 4321,
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setLastAgentMessage",
+      threadId: "thread-1",
+      text: "Hello",
+      timestamp: 4321,
+      source: "agent",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setLastAgentMessage",
+      threadId: "thread-1",
+      text: "Hello world",
+      timestamp: 4321,
+      source: "agent",
+    });
+
+    nowSpy.mockRestore();
   });
 
   it("completes agent messages and updates thread activity", () => {

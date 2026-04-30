@@ -1,11 +1,18 @@
 import { useMemo, useState } from "react";
-import type { CSSProperties, ChangeEvent, FormEvent, KeyboardEvent } from "react";
+import type {
+  CSSProperties,
+  ChangeEvent,
+  ClipboardEvent,
+  FormEvent,
+  KeyboardEvent,
+} from "react";
 import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle";
 import type { ThreadSummary, WorkspaceInfo } from "@/types";
 import type { ThreadStatusById } from "@/utils/threadStatus";
 import { formatRelativeTime } from "@/utils/time";
 import { deriveThreadContextTitle } from "@/utils/threadDisplay";
 import { getWorkspaceAccent } from "@/utils/workspaceAccent";
+import { ComposerAttachments } from "@/features/composer/components/ComposerAttachments";
 import type { LatestAgentRun } from "../homeTypes";
 
 type SessionStatus = "running" | "review" | "attention" | "idle" | "stopped";
@@ -27,6 +34,7 @@ type SessionTile = {
   preview: string;
   attentionLabel: string | null;
   source: SessionSource;
+  updatedAt: number;
 };
 
 type HomeSessionDashboardProps = {
@@ -42,8 +50,12 @@ type HomeSessionDashboardProps = {
     workspaceId: string,
     threadId: string,
     text: string,
+    images: string[],
   ) => Promise<unknown>;
 };
+
+const SESSION_DECK_LIMIT = 12;
+const SESSION_DECK_IDLE_LIMIT = 4;
 
 const FIXTURE_SESSIONS: SessionTile[] = [
   {
@@ -60,6 +72,7 @@ const FIXTURE_SESSIONS: SessionTile[] = [
     preview: "Root app is running from the CodexMonitor shell with the glass layout intact.",
     attentionLabel: null,
     source: "fixture",
+    updatedAt: 4,
   },
   {
     id: "fixture:tiles",
@@ -75,6 +88,7 @@ const FIXTURE_SESSIONS: SessionTile[] = [
     preview: "Map board-style agent phases into compact, scannable session tiles.",
     attentionLabel: "layout check",
     source: "fixture",
+    updatedAt: 3,
   },
   {
     id: "fixture:workspace",
@@ -90,6 +104,7 @@ const FIXTURE_SESSIONS: SessionTile[] = [
     preview: "Project registration, recent sessions, and local-first controls stay in view.",
     attentionLabel: null,
     source: "fixture",
+    updatedAt: 2,
   },
   {
     id: "fixture:diff",
@@ -105,6 +120,7 @@ const FIXTURE_SESSIONS: SessionTile[] = [
     preview: "Diff, terminal, and plan surfaces remain available after focusing a tile.",
     attentionLabel: "needs response",
     source: "fixture",
+    updatedAt: 1,
   },
 ];
 
@@ -167,6 +183,51 @@ function getStatusLabel(status: SessionStatus) {
   }
 }
 
+function readFilesAsDataUrls(files: File[]) {
+  return Promise.all(
+    files.map(
+      (file) =>
+        new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () =>
+            resolve(typeof reader.result === "string" ? reader.result : "");
+          reader.onerror = () => resolve("");
+          reader.readAsDataURL(file);
+        }),
+    ),
+  ).then((items) => items.filter(Boolean));
+}
+
+function getSessionBoardPriority(session: SessionTile) {
+  if (session.status === "attention" || session.attentionLabel) {
+    return 0;
+  }
+  if (session.status === "running") {
+    return 1;
+  }
+  if (session.status === "review") {
+    return 2;
+  }
+  if (session.status === "idle") {
+    return 3;
+  }
+  return 4;
+}
+
+function isActionableSession(session: SessionTile) {
+  return getSessionBoardPriority(session) < 3;
+}
+
+function sortSessionsForBoard(sessions: SessionTile[]) {
+  return sessions.slice().sort((a, b) => {
+    const priorityDiff = getSessionBoardPriority(a) - getSessionBoardPriority(b);
+    if (priorityDiff !== 0) {
+      return priorityDiff;
+    }
+    return b.updatedAt - a.updatedAt;
+  });
+}
+
 function buildRealSessions({
   workspaces,
   threadsByWorkspace,
@@ -176,9 +237,14 @@ function buildRealSessions({
   HomeSessionDashboardProps,
   "workspaces" | "threadsByWorkspace" | "threadStatusById" | "latestAgentRuns"
 >): SessionTile[] {
-  const latestBySession = new Map(
-    latestAgentRuns.map((run) => [`${run.workspaceId}:${run.threadId}`, run]),
-  );
+  const latestBySession = new Map<string, LatestAgentRun>();
+  latestAgentRuns.forEach((run) => {
+    const sessionId = `${run.workspaceId}:${run.threadId}`;
+    const existing = latestBySession.get(sessionId);
+    if (!existing || run.timestamp >= existing.timestamp) {
+      latestBySession.set(sessionId, run);
+    }
+  });
 
   return workspaces
     .flatMap((workspace) => {
@@ -190,6 +256,7 @@ function buildRealSessions({
         const status = getSessionStatus(threadStatus);
         const threadName = thread.name.trim() || "Untitled session";
         const latestMessage = latest?.message.trim() ?? "";
+        const activityTimestamp = Math.max(thread.updatedAt, latest?.timestamp ?? 0);
         const preview =
           latestMessage && latest?.source !== "thread-preview"
             ? latestMessage
@@ -213,38 +280,37 @@ function buildRealSessions({
           agent: getThreadAgent(thread),
           status,
           runtimeLabel: formatRuntime(thread.createdAt, thread.updatedAt),
-          lastActivityLabel: formatRelativeTime(thread.updatedAt),
+          lastActivityLabel: formatRelativeTime(activityTimestamp),
           preview,
           attentionLabel,
           source: "real" as const,
+          updatedAt: activityTimestamp,
         };
       });
     })
-    .sort((a, b) => {
-      const aThread = threadsByWorkspace[a.workspaceId]?.find(
-        (thread) => thread.id === a.threadId,
-      );
-      const bThread = threadsByWorkspace[b.workspaceId]?.find(
-        (thread) => thread.id === b.threadId,
-      );
-      return (bThread?.updatedAt ?? 0) - (aThread?.updatedAt ?? 0);
-    });
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 function SessionTileCard({
   session,
   isSelected,
   draft,
+  images,
   onFocus,
   onDraftChange,
+  onAttachImages,
+  onRemoveImage,
   onSend,
 }: {
   session: SessionTile;
   isSelected: boolean;
   draft: string;
+  images: string[];
   onFocus: (session: SessionTile) => void;
   onDraftChange: (sessionId: string, value: string) => void;
-  onSend: (session: SessionTile, text: string) => void;
+  onAttachImages: (sessionId: string, images: string[]) => void;
+  onRemoveImage: (sessionId: string, image: string) => void;
+  onSend: (session: SessionTile, text: string, images: string[]) => void;
 }) {
   const statusLabel = getStatusLabel(session.status);
   const canSend = session.source === "real" && Boolean(session.threadId);
@@ -264,10 +330,40 @@ function SessionTileCard({
     event.preventDefault();
     event.stopPropagation();
     const text = draft.trim();
-    if (!text || !canSend) {
+    if ((!text && images.length === 0) || !canSend) {
       return;
     }
-    onSend(session, text);
+    onSend(session, text, images);
+  };
+  const handlePaste = async (event: ClipboardEvent<HTMLInputElement>) => {
+    if (!canSend) {
+      return;
+    }
+    const items = Array.from(event.clipboardData?.items ?? []);
+    const imageItems = items.filter((item) => item.type.startsWith("image/"));
+    if (imageItems.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const files = imageItems
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+    if (files.length === 0) {
+      return;
+    }
+    const text = event.clipboardData?.getData("text/plain") ?? "";
+    if (text) {
+      const target = event.currentTarget;
+      const start = target.selectionStart ?? draft.length;
+      const end = target.selectionEnd ?? start;
+      const nextDraft = `${draft.slice(0, start)}${text}${draft.slice(end)}`;
+      onDraftChange(session.id, nextDraft);
+    }
+    const dataUrls = await readFilesAsDataUrls(files);
+    if (dataUrls.length > 0) {
+      onAttachImages(session.id, dataUrls);
+    }
   };
 
   return (
@@ -308,14 +404,22 @@ function SessionTileCard({
             onSubmit={handleSubmit}
             onClick={(event) => event.stopPropagation()}
           >
-            <input
-              type="text"
-              value={draft}
-              onChange={(event) => onDraftChange(session.id, event.target.value)}
-              placeholder="Message this session"
-              aria-label={`Message ${session.title}`}
-            />
-            <button type="submit" disabled={!draft.trim()}>
+            <div className="session-tile-command-main">
+              <ComposerAttachments
+                attachments={images}
+                disabled={!canSend}
+                onRemoveAttachment={(image) => onRemoveImage(session.id, image)}
+              />
+              <input
+                type="text"
+                value={draft}
+                onChange={(event) => onDraftChange(session.id, event.target.value)}
+                onPaste={handlePaste}
+                placeholder="Message this session"
+                aria-label={`Message ${session.title}`}
+              />
+            </div>
+            <button type="submit" disabled={!draft.trim() && images.length === 0}>
               Send
             </button>
           </form>
@@ -360,6 +464,7 @@ export function HomeSessionDashboard({
   const [sessionFilter, setSessionFilter] = useState<SessionFilter>("all");
   const [workspaceFilter, setWorkspaceFilter] = useState<WorkspaceFilter>("all");
   const [draftsBySessionId, setDraftsBySessionId] = useState<Record<string, string>>({});
+  const [imagesBySessionId, setImagesBySessionId] = useState<Record<string, string[]>>({});
 
   const realSessions = useMemo(
     () =>
@@ -415,7 +520,10 @@ export function HomeSessionDashboard({
     }
     return workspaceFilteredSessions;
   }, [sessionFilter, workspaceFilteredSessions]);
-
+  const boardSortedSessions = useMemo(
+    () => sortSessionsForBoard(visibleSessions),
+    [visibleSessions],
+  );
   const activeRealSessionId =
     activeWorkspaceId && activeThreadId
       ? `${activeWorkspaceId}:${activeThreadId}`
@@ -424,6 +532,29 @@ export function HomeSessionDashboard({
     visibleSessions.find((session) => session.id === selectedSessionId)?.id ??
     visibleSessions.find((session) => session.id === activeRealSessionId)?.id ??
     null;
+  const deckSessions = useMemo(() => {
+    const boardCandidates =
+      sessionFilter === "all"
+        ? [
+            ...boardSortedSessions.filter(isActionableSession),
+            ...boardSortedSessions
+              .filter((session) => !isActionableSession(session))
+              .slice(0, SESSION_DECK_IDLE_LIMIT),
+          ]
+        : boardSortedSessions;
+    const firstSessions = boardCandidates.slice(0, SESSION_DECK_LIMIT);
+    if (!selectedId || firstSessions.some((session) => session.id === selectedId)) {
+      return firstSessions;
+    }
+    const selectedSession = boardSortedSessions.find((session) => session.id === selectedId);
+    if (!selectedSession) {
+      return firstSessions;
+    }
+    return [
+      ...firstSessions.slice(0, Math.max(0, SESSION_DECK_LIMIT - 1)),
+      selectedSession,
+    ];
+  }, [boardSortedSessions, selectedId, sessionFilter]);
   const runningCount = workspaceFilteredSessions.filter((session) => session.status === "running").length;
   const attentionCount = workspaceFilteredSessions.filter(
     (session) => session.status === "attention" || session.attentionLabel,
@@ -450,12 +581,41 @@ export function HomeSessionDashboard({
     setDraftsBySessionId((current) => ({ ...current, [sessionId]: value }));
   };
 
-  const handleSend = (session: SessionTile, text: string) => {
+  const handleAttachImages = (sessionId: string, images: string[]) => {
+    if (images.length === 0) {
+      return;
+    }
+    setImagesBySessionId((current) => {
+      const existing = current[sessionId] ?? [];
+      return {
+        ...current,
+        [sessionId]: Array.from(new Set([...existing, ...images])),
+      };
+    });
+  };
+
+  const handleRemoveImage = (sessionId: string, image: string) => {
+    setImagesBySessionId((current) => {
+      const existing = current[sessionId] ?? [];
+      const next = existing.filter((entry) => entry !== image);
+      if (next.length === 0) {
+        const { [sessionId]: _, ...rest } = current;
+        return rest;
+      }
+      return { ...current, [sessionId]: next };
+    });
+  };
+
+  const handleSend = (session: SessionTile, text: string, images: string[]) => {
     if (!session.threadId) {
       return;
     }
     setDraftsBySessionId((current) => ({ ...current, [session.id]: "" }));
-    void onSendMessageToThread(session.workspaceId, session.threadId, text);
+    setImagesBySessionId((current) => {
+      const { [session.id]: _, ...rest } = current;
+      return rest;
+    });
+    void onSendMessageToThread(session.workspaceId, session.threadId, text, images);
   };
 
   return (
@@ -517,15 +677,18 @@ export function HomeSessionDashboard({
         <SessionDashboardSkeleton />
       ) : (
         <div className="session-dashboard-grid" aria-label="Agent sessions">
-          {visibleSessions.length > 0 ? (
-            visibleSessions.map((session) => (
+          {deckSessions.length > 0 ? (
+            deckSessions.map((session) => (
               <SessionTileCard
                 key={session.id}
                 session={session}
                 isSelected={session.id === selectedId}
                 draft={draftsBySessionId[session.id] ?? ""}
+                images={imagesBySessionId[session.id] ?? []}
                 onFocus={handleFocus}
                 onDraftChange={handleDraftChange}
+                onAttachImages={handleAttachImages}
+                onRemoveImage={handleRemoveImage}
                 onSend={handleSend}
               />
             ))

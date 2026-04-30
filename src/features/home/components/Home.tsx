@@ -43,6 +43,7 @@ type HomeProps = {
     workspaceId: string,
     threadId: string,
     text: string,
+    images: string[],
   ) => Promise<unknown>;
 };
 
