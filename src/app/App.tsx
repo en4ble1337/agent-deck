@@ -14,6 +14,7 @@ import type {
   SessionStatusEvent,
   SessionView,
 } from "@/domain/sessions";
+import type { BoardThemeId } from "@/domain/themes";
 import type { Workspace } from "@/domain/workspaces";
 import FocusedSessionView from "@/features/focused-session/FocusedSessionView";
 import TileBoard from "@/features/tile-board/TileBoard";
@@ -34,6 +35,7 @@ import {
 } from "@/services/ipc";
 import { onSessionOutput, onSessionStatus } from "@/services/events";
 import { isTauriRuntime } from "@/services/runtime";
+import { readStoredBoardThemeId, writeStoredBoardThemeId } from "@/services/themeStorage";
 
 const DEFAULT_COLS = 100;
 const DEFAULT_ROWS = 30;
@@ -43,6 +45,7 @@ export default function App() {
   const [sessions, setSessions] = useState<SessionView[]>([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
+  const [themeId, setThemeId] = useState<BoardThemeId>(() => readStoredBoardThemeId());
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -62,6 +65,11 @@ export default function App() {
       setIsLoading(false);
     });
   }, [refresh]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = themeId;
+    writeStoredBoardThemeId(themeId);
+  }, [themeId]);
 
   useEffect(() => {
     const unlisteners: Array<() => void> = [];
@@ -276,6 +284,8 @@ export default function App() {
         onRenameWorkspace={handleRenameWorkspace}
         onSelectSession={setFocusedSessionId}
         onSelectWorkspace={setSelectedWorkspaceId}
+        onChangeTheme={setThemeId}
+        themeId={themeId}
       />
 
       <section className="board-surface">

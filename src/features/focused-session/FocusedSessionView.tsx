@@ -49,18 +49,18 @@ export default function FocusedSessionView({
       lineHeight: 1.18,
       scrollback: 10_000,
       theme: {
-        background: "#080b0e",
-        foreground: "#d9f0e3",
+        background: cssVar("--terminal-bg", "#080b0e"),
+        foreground: cssVar("--terminal-text", "#d9f0e3"),
         cursor: workspace.accent,
-        selectionBackground: "#29433a",
-        black: "#0b0f12",
-        blue: "#7aa7ff",
-        cyan: "#55c7d7",
-        green: "#48d597",
+        selectionBackground: cssVar("--terminal-selection", "#29433a"),
+        black: cssVar("--terminal-input-bg", "#0b0f12"),
+        blue: cssVar("--info", "#7aa7ff"),
+        cyan: cssVar("--focus", "#55c7d7"),
+        green: cssVar("--good", "#48d597"),
         magenta: "#d991c2",
-        red: "#f07178",
-        white: "#e8eee9",
-        yellow: "#f3b74f",
+        red: cssVar("--danger", "#f07178"),
+        white: cssVar("--text", "#e8eee9"),
+        yellow: cssVar("--warning", "#f3b74f"),
       },
     });
     const fitAddon = new FitAddon();
@@ -150,4 +150,9 @@ export default function FocusedSessionView({
       <section className="terminal-frame" ref={containerRef} />
     </main>
   );
+}
+
+function cssVar(name: string, fallback: string): string {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
 }

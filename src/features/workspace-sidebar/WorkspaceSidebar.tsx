@@ -7,11 +7,13 @@ import {
   CirclePlus,
   FolderPlus,
   Paintbrush,
+  Palette,
   Pencil,
   Terminal,
   X,
 } from "lucide-react";
 import type { SessionKind, SessionView } from "@/domain/sessions";
+import { BOARD_THEMES, type BoardThemeId } from "@/domain/themes";
 import { WORKSPACE_ACCENTS, type Workspace } from "@/domain/workspaces";
 import { sessionSignal, sessionSignalLabel } from "@/utils/terminalText";
 import { compactPath, formatShortTime } from "@/utils/time";
@@ -23,11 +25,13 @@ type Props = {
   onAddWorkspace: () => void;
   onArchiveSession: (sessionId: string) => void;
   onChangeColor: (workspace: Workspace, accent: string) => void;
+  onChangeTheme: (themeId: BoardThemeId) => void;
   onCloseWorkspace: (workspace: Workspace) => void;
   onCreateSession: (workspaceId: string, kind: SessionKind) => void;
   onRenameWorkspace: (workspace: Workspace) => void;
   onSelectSession: (sessionId: string) => void;
   onSelectWorkspace: (workspaceId: string | null) => void;
+  themeId: BoardThemeId;
 };
 
 export default function WorkspaceSidebar({
@@ -37,11 +41,13 @@ export default function WorkspaceSidebar({
   onAddWorkspace,
   onArchiveSession,
   onChangeColor,
+  onChangeTheme,
   onCloseWorkspace,
   onCreateSession,
   onRenameWorkspace,
   onSelectSession,
   onSelectWorkspace,
+  themeId,
 }: Props) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [colorMenuWorkspaceId, setColorMenuWorkspaceId] = useState<string | null>(null);
@@ -285,6 +291,43 @@ export default function WorkspaceSidebar({
           );
         })}
       </div>
+
+      <footer className="sidebar-footer">
+        <div className="theme-picker">
+          <div className="theme-picker-title">
+            <Palette size={14} aria-hidden />
+            Theme
+          </div>
+          <div className="theme-options" role="listbox" aria-label="Theme">
+            {BOARD_THEMES.map((theme) => (
+              <button
+                aria-label={`${theme.name} theme`}
+                aria-selected={themeId === theme.id}
+                className={`theme-option ${themeId === theme.id ? "is-selected" : ""}`}
+                key={theme.id}
+                role="option"
+                style={
+                  {
+                    "--theme-bg": theme.swatches[0],
+                    "--theme-surface": theme.swatches[1],
+                    "--theme-accent": theme.swatches[2],
+                  } as CSSProperties
+                }
+                title={`${theme.name} theme`}
+                type="button"
+                onClick={() => onChangeTheme(theme.id)}
+              >
+                <span className="theme-swatch" aria-hidden>
+                  <span />
+                  <span />
+                  <span />
+                </span>
+                <span>{theme.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </footer>
     </aside>
   );
 }
