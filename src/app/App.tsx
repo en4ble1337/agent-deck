@@ -208,14 +208,16 @@ export default function App() {
     [runAction],
   );
 
-  const handleWriteToSession = useCallback(
-    (sessionId: string, data: string) => {
-      runAction(async () => {
-        await sessionWrite(sessionId, data);
-      });
-    },
-    [runAction],
-  );
+  const handleWriteToSession = useCallback(async (sessionId: string, data: string) => {
+    try {
+      setError(null);
+      await sessionWrite(sessionId, data);
+    } catch (caught) {
+      const message = errorMessage(caught);
+      setError(message);
+      throw new Error(message);
+    }
+  }, []);
 
   const handleArchiveSession = useCallback(
     (sessionId: string) => {

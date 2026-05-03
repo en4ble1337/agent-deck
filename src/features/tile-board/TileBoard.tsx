@@ -1,5 +1,5 @@
 import { Archive, Maximize2, Play, RotateCcw, SendHorizontal, Square, Terminal } from "lucide-react";
-import { useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useState, type CSSProperties } from "react";
 import type { SessionKind, SessionView } from "@/domain/sessions";
 import type { Workspace } from "@/domain/workspaces";
 import {
@@ -18,7 +18,7 @@ type Props = {
   onFocus: (sessionId: string) => void;
   onRestart: (sessionId: string) => void;
   onStop: (sessionId: string) => void;
-  onWrite: (sessionId: string, data: string) => void;
+  onWrite: (sessionId: string, data: string) => Promise<void>;
 };
 
 export default function TileBoard({
@@ -33,6 +33,7 @@ export default function TileBoard({
   onWrite,
 }: Props) {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [sendingSessionIds, setSendingSessionIds] = useState<Record<string, boolean>>({});
   const workspaceById = new Map(workspaces.map((workspace) => [workspace.id, workspace]));
   const visibleSessions = sessions
     .filter((session) => !session.isArchived)
@@ -69,6 +70,7 @@ export default function TileBoard({
         const signal = sessionSignal(session);
         const signalLabel = sessionSignalLabel(signal);
         const draft = drafts[session.id] ?? "";
+        const isSending = sendingSessionIds[session.id] === true;
         return (
           <article
             className={`session-tile tile-${session.tileSize} signal-${signal}`}
@@ -116,29 +118,34 @@ export default function TileBoard({
               className="quick-input-form"
               onSubmit={(event) => {
                 event.preventDefault();
-                sendQuickInput(session.id, draft, setDrafts, onWrite);
+                void sendQuickInput(
+                  session.id,
+                  draft,
+                  setDrafts,
+                  setSendingSessionIds,
+                  onWrite,
+                );
               }}
             >
               <input
                 aria-label={`Type into ${session.title}`}
-                disabled={!session.hasProcess}
+                disabled={!session.hasProcess || isSending}
                 onChange={(event) =>
                   setDrafts((current) => ({
                     ...current,
                     [session.id]: event.target.value,
                   }))
                 }
-                onKeyDown={(event) => {
-                  handleQuickInputKeyDown(event, session.id, draft, setDrafts, onWrite);
-                }}
                 placeholder={
-                  session.hasProcess ? "Type command and press Enter" : "Start session to type"
+                  session.hasProcess
+                    ? "Type command and press Enter"
+                    : "Start session to type"
                 }
                 value={draft}
               />
               <button
                 className="quick-send-button"
-                disabled={!session.hasProcess || draft.length === 0}
+                disabled={!session.hasProcess || isSending || draft.length === 0}
                 title="Send to terminal"
                 type="submit"
               >
@@ -152,34 +159,47 @@ export default function TileBoard({
   );
 }
 
-function handleQuickInputKeyDown(
-  event: KeyboardEvent<HTMLInputElement>,
+async function sendQuickInput(
   sessionId: string,
   draft: string,
   setDrafts: (updater: (current: Record<string, string>) => Record<string, string>) => void,
-  onWrite: (sessionId: string, data: string) => void,
-) {
-  if (event.key !== "Enter") {
-    return;
-  }
-  event.preventDefault();
-  sendQuickInput(sessionId, draft, setDrafts, onWrite);
-}
-
-function sendQuickInput(
-  sessionId: string,
-  draft: string,
-  setDrafts: (updater: (current: Record<string, string>) => Record<string, string>) => void,
-  onWrite: (sessionId: string, data: string) => void,
+  setSendingSessionIds: (
+    updater: (current: Record<string, boolean>) => Record<string, boolean>,
+  ) => void,
+  onWrite: (sessionId: string, data: string) => Promise<void>,
 ) {
   if (draft.length === 0) {
     return;
   }
-  onWrite(sessionId, `${draft}\r`);
-  setDrafts((current) => ({
-    ...current,
-    [sessionId]: "",
-  }));
+  setSendingSessionIds((current) => ({ ...current, [sessionId]: true }));
+  try {
+    await sendAsTerminalKeystrokes(sessionId, draft, onWrite);
+    setDrafts((current) => ({
+      ...current,
+      [sessionId]: "",
+    }));
+  } catch {
+    return;
+  } finally {
+    setSendingSessionIds((current) => ({ ...current, [sessionId]: false }));
+  }
+}
+
+async function sendAsTerminalKeystrokes(
+  sessionId: string,
+  text: string,
+  onWrite: (sessionId: string, data: string) => Promise<void>,
+) {
+  for (const char of Array.from(text)) {
+    await onWrite(sessionId, char);
+    await sleep(3);
+  }
+  await sleep(16);
+  await onWrite(sessionId, "\r");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function compareSessions(left: SessionView, right: SessionView): number {
