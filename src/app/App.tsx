@@ -33,6 +33,7 @@ import {
   workspaceUpdate,
 } from "@/services/ipc";
 import { onSessionOutput, onSessionStatus } from "@/services/events";
+import { isTauriRuntime } from "@/services/runtime";
 
 const DEFAULT_COLS = 100;
 const DEFAULT_ROWS = 30;
@@ -108,11 +109,13 @@ export default function App() {
 
   const handleAddWorkspace = useCallback(() => {
     runAction(async () => {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-        title: "Add workspace",
-      });
+      const selected = isTauriRuntime()
+        ? await open({
+            directory: true,
+            multiple: false,
+            title: "Add workspace",
+          })
+        : window.prompt("Workspace path", "Projects/new-workspace");
       if (typeof selected !== "string") {
         return;
       }

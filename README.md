@@ -29,4 +29,12 @@ Run the desktop app:
 npm run tauri:dev
 ```
 
+Run the browser preview:
+
+```bash
+npm run dev
+```
+
+Open `http://127.0.0.1:1420/`. Browser preview uses mock terminal data so the UI can be reviewed in tools like the Codex preview pane; real terminal processes still run through Tauri.
+
 The archived AgentDeck implementation is under `archive/legacy-agent-deck/` for reference only.
