@@ -28,6 +28,7 @@ import {
   sessionRestart,
   sessionStart,
   sessionStop,
+  sessionWrite,
   workspaceAdd,
   workspaceClose,
   workspaceList,
@@ -207,6 +208,15 @@ export default function App() {
     [runAction],
   );
 
+  const handleWriteToSession = useCallback(
+    (sessionId: string, data: string) => {
+      runAction(async () => {
+        await sessionWrite(sessionId, data);
+      });
+    },
+    [runAction],
+  );
+
   const handleArchiveSession = useCallback(
     (sessionId: string) => {
       runAction(async () => {
@@ -314,6 +324,7 @@ export default function App() {
             onFocus={setFocusedSessionId}
             onRestart={handleRestartSession}
             onStop={handleStopSession}
+            onWrite={handleWriteToSession}
           />
         )}
       </section>

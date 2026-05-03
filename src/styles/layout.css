@@ -226,6 +226,10 @@
   padding-left: 8px;
 }
 
+.session-row.signal-needs-input {
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+}
+
 .session-main {
   display: flex;
   min-width: 0;
@@ -375,12 +379,16 @@
 .session-tile {
   display: grid;
   min-height: 248px;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--workspace-accent) 40%, var(--line));
   border-radius: var(--radius);
   background: var(--surface-raised);
   box-shadow: var(--shadow);
+}
+
+.session-tile.signal-needs-input {
+  border-color: color-mix(in srgb, var(--warning) 58%, var(--workspace-accent));
 }
 
 .session-tile::before {
@@ -415,11 +423,48 @@
 
 .tile-meta {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 0 11px 8px;
   color: var(--muted);
   font-size: 11px;
   text-transform: capitalize;
+}
+
+.signal-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 7px;
+  background: color-mix(in srgb, var(--surface-soft) 84%, transparent);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.signal-pill.signal-running {
+  border-color: color-mix(in srgb, var(--good) 42%, var(--line));
+  color: #aef1cd;
+}
+
+.signal-pill.signal-idle {
+  border-color: color-mix(in srgb, var(--warning) 38%, var(--line));
+  color: #f5d899;
+}
+
+.signal-pill.signal-needs-input {
+  border-color: color-mix(in srgb, var(--warning) 65%, var(--line));
+  background: color-mix(in srgb, var(--warning) 17%, var(--surface));
+  color: #ffe8ac;
+}
+
+.signal-pill.signal-failed {
+  border-color: color-mix(in srgb, var(--danger) 60%, var(--line));
+  color: #ffd8dc;
 }
 
 .terminal-tail {
@@ -441,6 +486,60 @@
   line-height: 1.36;
   text-align: left;
   white-space: pre-wrap;
+}
+
+.quick-input-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 7px;
+  border-top: 1px solid var(--line);
+  padding: 8px;
+  background: #0b0f0d;
+}
+
+.quick-input-form input {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, var(--workspace-accent) 25%, var(--line));
+  border-radius: var(--radius);
+  padding: 0 10px;
+  background: #111611;
+  color: var(--text);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+}
+
+.quick-input-form input::placeholder {
+  color: var(--dim);
+}
+
+.quick-input-form input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.quick-input-form input:focus {
+  border-color: var(--workspace-accent);
+  outline: 0;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--workspace-accent) 18%, transparent);
+}
+
+.quick-send-button {
+  display: inline-grid;
+  width: 34px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--workspace-accent) 38%, var(--line));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--workspace-accent) 16%, var(--surface));
+  color: var(--text);
+  cursor: pointer;
+}
+
+.quick-send-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 @media (max-width: 980px) {

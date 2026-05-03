@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { SessionKind, SessionView } from "@/domain/sessions";
 import type { Workspace } from "@/domain/workspaces";
+import { sessionSignal, sessionSignalLabel } from "@/utils/terminalText";
 import { compactPath, formatShortTime } from "@/utils/time";
 
 type Props = {
@@ -153,35 +154,39 @@ export default function WorkspaceSidebar({
 
               {isExpanded ? (
                 <div className="session-list">
-                  {visibleSessions.map((session) => (
-                    <div
-                      className="session-row"
-                      key={session.id}
-                      style={{ "--workspace-accent": workspace.accent } as CSSProperties}
-                    >
-                      <button
-                        className="session-main"
-                        type="button"
-                        onClick={() => onSelectSession(session.id)}
+                  {visibleSessions.map((session) => {
+                    const signal = sessionSignal(session);
+                    return (
+                      <div
+                        className={`session-row signal-${signal}`}
+                        key={session.id}
+                        style={{ "--workspace-accent": workspace.accent } as CSSProperties}
                       >
-                        <span className={`status-dot status-${session.status}`} />
-                        <span>
-                          <strong>{session.title}</strong>
-                          <small>
-                            {session.kind} {formatShortTime(session.lastActiveAt)}
-                          </small>
-                        </span>
-                      </button>
-                      <button
-                        className="icon-button subtle"
-                        type="button"
-                        onClick={() => onArchiveSession(session.id)}
-                        title="Archive session"
-                      >
-                        <Archive size={14} aria-hidden />
-                      </button>
-                    </div>
-                  ))}
+                        <button
+                          className="session-main"
+                          type="button"
+                          onClick={() => onSelectSession(session.id)}
+                        >
+                          <span className={`status-dot status-${session.status}`} />
+                          <span>
+                            <strong>{session.title}</strong>
+                            <small>
+                              {session.kind} · {sessionSignalLabel(signal)} ·{" "}
+                              {formatShortTime(session.lastActiveAt)}
+                            </small>
+                          </span>
+                        </button>
+                        <button
+                          className="icon-button subtle"
+                          type="button"
+                          onClick={() => onArchiveSession(session.id)}
+                          title="Archive session"
+                        >
+                          <Archive size={14} aria-hidden />
+                        </button>
+                      </div>
+                    );
+                  })}
 
                   {workspaceSessions.length > 5 ? (
                     <button
