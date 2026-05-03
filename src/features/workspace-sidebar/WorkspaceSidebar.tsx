@@ -44,6 +44,7 @@ export default function WorkspaceSidebar({
   onSelectWorkspace,
 }: Props) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [newSessionMenuWorkspaceId, setNewSessionMenuWorkspaceId] = useState<string | null>(null);
   const [showMore, setShowMore] = useState<Record<string, boolean>>({});
   const sessionsByWorkspace = useMemo(() => {
     const map = new Map<string, SessionView[]>();
@@ -128,29 +129,59 @@ export default function WorkspaceSidebar({
                 <button
                   className="icon-button"
                   type="button"
-                  onClick={() => onCreateSession(workspace.id, "terminal")}
-                  title="New terminal session"
+                  onClick={() =>
+                    setNewSessionMenuWorkspaceId((current) =>
+                      current === workspace.id ? null : workspace.id,
+                    )
+                  }
+                  title="New session"
                 >
                   <CirclePlus size={17} aria-hidden />
                 </button>
               </div>
 
-              <div className="workspace-tools">
-                <button type="button" onClick={() => onCreateSession(workspace.id, "terminal")}>
-                  <Terminal size={14} aria-hidden />
-                  Terminal
-                </button>
-                <button type="button" onClick={() => onCreateSession(workspace.id, "codex")}>
-                  <Bot size={14} aria-hidden />
-                  Codex
-                </button>
-                <button type="button" onClick={() => onCreateSession(workspace.id, "claude")}>
-                  Claude
-                </button>
-                <button type="button" onClick={() => onCreateSession(workspace.id, "custom")}>
-                  Custom
-                </button>
-              </div>
+              {newSessionMenuWorkspaceId === workspace.id ? (
+                <div className="new-session-menu" role="menu">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCreateSession(workspace.id, "terminal");
+                      setNewSessionMenuWorkspaceId(null);
+                    }}
+                  >
+                    <Terminal size={14} aria-hidden />
+                    Terminal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCreateSession(workspace.id, "codex");
+                      setNewSessionMenuWorkspaceId(null);
+                    }}
+                  >
+                    <Bot size={14} aria-hidden />
+                    Codex
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCreateSession(workspace.id, "claude");
+                      setNewSessionMenuWorkspaceId(null);
+                    }}
+                  >
+                    Claude
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCreateSession(workspace.id, "custom");
+                      setNewSessionMenuWorkspaceId(null);
+                    }}
+                  >
+                    Custom
+                  </button>
+                </div>
+              ) : null}
 
               {isExpanded ? (
                 <div className="session-list">
@@ -171,7 +202,7 @@ export default function WorkspaceSidebar({
                           <span>
                             <strong>{session.title}</strong>
                             <small>
-                              {session.kind} · {sessionSignalLabel(signal)} ·{" "}
+                              {session.kind} - {sessionSignalLabel(signal)} -{" "}
                               {formatShortTime(session.lastActiveAt)}
                             </small>
                           </span>

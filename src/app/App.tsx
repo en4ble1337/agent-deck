@@ -8,7 +8,6 @@ import {
 } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Activity, FolderPlus, Layers3 } from "lucide-react";
-import type { CommandPreset } from "@/domain/presets";
 import type {
   SessionKind,
   SessionOutputEvent,
@@ -20,7 +19,6 @@ import FocusedSessionView from "@/features/focused-session/FocusedSessionView";
 import TileBoard from "@/features/tile-board/TileBoard";
 import WorkspaceSidebar from "@/features/workspace-sidebar/WorkspaceSidebar";
 import {
-  presetList,
   sessionArchive,
   sessionCreate,
   sessionDelete,
@@ -42,21 +40,18 @@ const DEFAULT_ROWS = 30;
 export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [sessions, setSessions] = useState<SessionView[]>([]);
-  const [presets, setPresets] = useState<CommandPreset[]>([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [nextWorkspaces, nextSessions, nextPresets] = await Promise.all([
+    const [nextWorkspaces, nextSessions] = await Promise.all([
       workspaceListSafe(),
       sessionList(undefined, false),
-      presetList(),
     ]);
     setWorkspaces(nextWorkspaces);
     setSessions(nextSessions);
-    setPresets(nextPresets);
     setIsLoading(false);
   }, []);
 
@@ -288,12 +283,6 @@ export default function App() {
             <h1>Terminal Board</h1>
           </div>
           <div className="board-actions">
-            {selectedWorkspace ? (
-              <PresetButtons
-                presets={presets}
-                onCreate={(kind) => handleCreateSession(selectedWorkspace.id, kind)}
-              />
-            ) : null}
             <button className="primary-button" type="button" onClick={handleAddWorkspace}>
               <FolderPlus size={18} aria-hidden />
               Workspace
@@ -331,32 +320,6 @@ export default function App() {
         )}
       </section>
     </main>
-  );
-}
-
-function PresetButtons({
-  presets,
-  onCreate,
-}: {
-  presets: CommandPreset[];
-  onCreate: (kind: SessionKind) => void;
-}) {
-  const visible = presets.filter((preset) =>
-    ["terminal", "codex", "claude", "custom"].includes(preset.kind),
-  );
-  return (
-    <div className="preset-row" aria-label="Session presets">
-      {visible.map((preset) => (
-        <button
-          className="compact-button"
-          key={preset.id}
-          type="button"
-          onClick={() => onCreate(preset.kind)}
-        >
-          {preset.name}
-        </button>
-      ))}
-    </div>
   );
 }
 
