@@ -119,7 +119,7 @@ export default function TileBoard({
               onSubmit={(event) => {
                 event.preventDefault();
                 void sendQuickInput(
-                  session.id,
+                  session,
                   draft,
                   setDrafts,
                   setSendingSessionIds,
@@ -137,9 +137,7 @@ export default function TileBoard({
                   }))
                 }
                 placeholder={
-                  session.hasProcess
-                    ? "Type command and press Enter"
-                    : "Start session to type"
+                  session.hasProcess ? quickInputPlaceholder(session.kind) : "Start session to type"
                 }
                 value={draft}
               />
@@ -160,7 +158,7 @@ export default function TileBoard({
 }
 
 async function sendQuickInput(
-  sessionId: string,
+  session: SessionView,
   draft: string,
   setDrafts: (updater: (current: Record<string, string>) => Record<string, string>) => void,
   setSendingSessionIds: (
@@ -171,31 +169,40 @@ async function sendQuickInput(
   if (draft.length === 0) {
     return;
   }
-  setSendingSessionIds((current) => ({ ...current, [sessionId]: true }));
+  setSendingSessionIds((current) => ({ ...current, [session.id]: true }));
   try {
-    await sendAsTerminalKeystrokes(sessionId, draft, onWrite);
+    await sendQuickLine(session, draft, onWrite);
     setDrafts((current) => ({
       ...current,
-      [sessionId]: "",
+      [session.id]: "",
     }));
   } catch {
     return;
   } finally {
-    setSendingSessionIds((current) => ({ ...current, [sessionId]: false }));
+    setSendingSessionIds((current) => ({ ...current, [session.id]: false }));
   }
 }
 
-async function sendAsTerminalKeystrokes(
-  sessionId: string,
+async function sendQuickLine(
+  session: SessionView,
   text: string,
   onWrite: (sessionId: string, data: string) => Promise<void>,
 ) {
-  for (const char of Array.from(text)) {
-    await onWrite(sessionId, char);
-    await sleep(3);
+  if (session.kind === "codex") {
+    await onWrite(session.id, bracketedPaste(text));
+    await sleep(80);
+    await onWrite(session.id, "\r");
+    return;
   }
-  await sleep(16);
-  await onWrite(sessionId, "\r");
+  await onWrite(session.id, `${text}\r`);
+}
+
+function bracketedPaste(text: string): string {
+  return `\x1b[200~${text.replaceAll("\x1b", "")}\x1b[201~`;
+}
+
+function quickInputPlaceholder(kind: SessionKind): string {
+  return kind === "codex" ? "Ask Codex and press Enter" : "Type command and press Enter";
 }
 
 function sleep(ms: number): Promise<void> {
