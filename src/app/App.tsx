@@ -151,6 +151,12 @@ export default function App() {
 
   const handleCloseWorkspace = useCallback(
     (workspace: Workspace) => {
+      const shouldClose = window.confirm(
+        `Close workspace "${workspace.name}"?\n\nLive sessions in this workspace will stop. Session history stays saved.`,
+      );
+      if (!shouldClose) {
+        return;
+      }
       runAction(async () => {
         const updated = await workspaceClose(workspace.id);
         setWorkspaces((current) => upsertById(current, updated));
