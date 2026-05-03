@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import type { SessionKind, SessionView } from "@/domain/sessions";
-import type { Workspace } from "@/domain/workspaces";
+import { WORKSPACE_ACCENTS, type Workspace } from "@/domain/workspaces";
 import { sessionSignal, sessionSignalLabel } from "@/utils/terminalText";
 import { compactPath, formatShortTime } from "@/utils/time";
 
@@ -22,7 +22,7 @@ type Props = {
   selectedWorkspaceId: string | null;
   onAddWorkspace: () => void;
   onArchiveSession: (sessionId: string) => void;
-  onChangeColor: (workspace: Workspace) => void;
+  onChangeColor: (workspace: Workspace, accent: string) => void;
   onCloseWorkspace: (workspace: Workspace) => void;
   onCreateSession: (workspaceId: string, kind: SessionKind) => void;
   onRenameWorkspace: (workspace: Workspace) => void;
@@ -44,6 +44,7 @@ export default function WorkspaceSidebar({
   onSelectWorkspace,
 }: Props) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [colorMenuWorkspaceId, setColorMenuWorkspaceId] = useState<string | null>(null);
   const [newSessionMenuWorkspaceId, setNewSessionMenuWorkspaceId] = useState<string | null>(null);
   const [showMore, setShowMore] = useState<Record<string, boolean>>({});
   const sessionsByWorkspace = useMemo(() => {
@@ -129,11 +130,12 @@ export default function WorkspaceSidebar({
                 <button
                   className="icon-button"
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
+                    setColorMenuWorkspaceId(null);
                     setNewSessionMenuWorkspaceId((current) =>
                       current === workspace.id ? null : workspace.id,
-                    )
-                  }
+                    );
+                  }}
                   title="New session"
                 >
                   <CirclePlus size={17} aria-hidden />
@@ -241,7 +243,15 @@ export default function WorkspaceSidebar({
                   <Pencil size={13} aria-hidden />
                   Rename
                 </button>
-                <button type="button" onClick={() => onChangeColor(workspace)}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewSessionMenuWorkspaceId(null);
+                    setColorMenuWorkspaceId((current) =>
+                      current === workspace.id ? null : workspace.id,
+                    );
+                  }}
+                >
                   <Paintbrush size={13} aria-hidden />
                   Color
                 </button>
@@ -250,6 +260,27 @@ export default function WorkspaceSidebar({
                   Close
                 </button>
               </div>
+
+              {colorMenuWorkspaceId === workspace.id ? (
+                <div className="workspace-color-menu" role="listbox" aria-label="Workspace color">
+                  {WORKSPACE_ACCENTS.map((accent) => (
+                    <button
+                      aria-label={accent.name}
+                      aria-selected={workspace.accent === accent.value}
+                      className={workspace.accent === accent.value ? "is-selected" : ""}
+                      key={accent.value}
+                      role="option"
+                      style={{ "--swatch-color": accent.value } as CSSProperties}
+                      title={accent.name}
+                      type="button"
+                      onClick={() => {
+                        onChangeColor(workspace, accent.value);
+                        setColorMenuWorkspaceId(null);
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : null}
             </section>
           );
         })}

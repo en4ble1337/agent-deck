@@ -137,11 +137,7 @@ export default function App() {
   );
 
   const handleChangeWorkspaceColor = useCallback(
-    (workspace: Workspace) => {
-      const accent = window.prompt("Workspace color", workspace.accent);
-      if (!accent) {
-        return;
-      }
+    (workspace: Workspace, accent: string) => {
       runAction(async () => {
         const updated = await workspaceUpdate(workspace.id, { accent });
         setWorkspaces((current) => upsertById(current, updated));

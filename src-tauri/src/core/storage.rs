@@ -111,7 +111,7 @@ impl Storage {
             id: Uuid::new_v4().to_string(),
             name: workspace_name(&normalized),
             path: normalized.clone(),
-            accent: accent_for(&normalized),
+            accent: accent_for_index(self.data.workspaces.len()),
             is_open: true,
             sort_index: self.data.workspaces.len() as i64,
             created_at: timestamp,
@@ -445,15 +445,12 @@ fn workspace_name(path: &str) -> String {
         .to_string()
 }
 
-fn accent_for(seed: &str) -> String {
+fn accent_for_index(index: usize) -> String {
     const PALETTE: [&str; 10] = [
-        "#48d597", "#f3b74f", "#7aa7ff", "#f07178", "#b08cff", "#55c7d7", "#c7d36f", "#ff8f70",
-        "#7bd88f", "#d991c2",
+        "#60A5FA", "#34D399", "#FBBF24", "#FB7185", "#A78BFA", "#22D3EE", "#FB923C", "#E879F9",
+        "#A3E635", "#F87171",
     ];
-    let hash = seed.bytes().fold(0usize, |acc, byte| {
-        acc.wrapping_mul(31).wrapping_add(byte as usize)
-    });
-    PALETTE[hash % PALETTE.len()].to_string()
+    PALETTE[index % PALETTE.len()].to_string()
 }
 
 fn default_presets() -> Vec<CommandPreset> {
