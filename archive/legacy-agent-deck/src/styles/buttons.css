@@ -1,0 +1,74 @@
+.empty {
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+button {
+  border: none;
+  border-radius: 4px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 80ms ease, color 80ms ease, border-color 80ms ease, opacity 80ms ease;
+  -webkit-app-region: no-drag;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary {
+  background: var(--accent-primary, #6b8aad);
+  color: #0b0f1a;
+  box-shadow: none;
+}
+
+.secondary {
+  background: var(--surface-card-strong);
+  color: inherit;
+}
+
+.ghost {
+  background: color-mix(in srgb, var(--surface-card) 32%, transparent);
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+}
+
+.icon-button {
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+button:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  opacity: 0.88;
+}
+
+button:active:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  opacity: 0.75;
+  transition-duration: 40ms;
+}
+
+.icon-button:active:not(:disabled) {
+  transform: none;
+}
+
+.primary:active:not(:disabled) {
+  filter: brightness(0.88);
+}
+
+.ghost:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}

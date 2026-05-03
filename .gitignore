@@ -1,0 +1,36 @@
+# Dependencies and build output
+node_modules
+dist
+dist-ssr
+src-tauri/gen
+src-tauri/target
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Local environment
+*.local
+.env
+.env.*
+!.env.example
+
+# Editor and OS files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Generated screenshots/artifacts
+screenshot*.png
+preview-screenshot*.png
+release-artifacts
+result

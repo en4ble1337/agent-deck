@@ -1,0 +1,22 @@
+[package]
+name = "terminal-board"
+version = "0.1.0"
+description = "A lightweight terminal board for local workspaces"
+authors = ["Terminal Board contributors"]
+edition = "2021"
+default-run = "terminal-board"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.6", features = [] }
+
+[dependencies]
+portable-pty = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2.10.3", features = [] }
+tauri-plugin-dialog = "2"
+tokio = { version = "1", features = ["rt", "sync"] }
+uuid = { version = "1", features = ["v4"] }
