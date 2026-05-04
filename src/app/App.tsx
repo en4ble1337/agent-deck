@@ -40,6 +40,7 @@ import { readStoredBoardThemeId, writeStoredBoardThemeId } from "@/services/them
 
 const DEFAULT_COLS = 100;
 const DEFAULT_ROWS = 30;
+const MANY_SESSION_LIMIT = 12;
 
 export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -228,6 +229,29 @@ export default function App() {
     [runAction],
   );
 
+  const handleCreateManySessions = useCallback(
+    (workspaceId: string, kind: SessionKind, count: number) => {
+      runAction(async () => {
+        const boundedCount = Math.min(MANY_SESSION_LIMIT, Math.max(1, count));
+        const startedSessions: SessionView[] = [];
+        for (let index = 0; index < boundedCount; index += 1) {
+          const created = await sessionCreate({ workspaceId, kind });
+          setSessions((current) => upsertById(current, created));
+          const started = await sessionStart(created.id, DEFAULT_COLS, DEFAULT_ROWS);
+          startedSessions.push(started);
+          setSessions((current) => upsertById(current, started));
+        }
+        setMinimizedSessionIds((current) =>
+          removeSessionIds(
+            current,
+            startedSessions.map((session) => session.id),
+          ),
+        );
+      });
+    },
+    [runAction],
+  );
+
   const handleStopSession = useCallback(
     (sessionId: string) => {
       runAction(async () => {
@@ -333,6 +357,7 @@ export default function App() {
         onArchiveSession={handleArchiveSession}
         onChangeColor={handleChangeWorkspaceColor}
         onCloseWorkspace={handleCloseWorkspace}
+        onCreateManySessions={handleCreateManySessions}
         onCreateSession={handleCreateSession}
         onRenameWorkspace={handleRenameWorkspace}
         onRestoreSession={handleRestoreSession}

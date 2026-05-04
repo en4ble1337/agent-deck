@@ -217,7 +217,7 @@
   top: 45px;
   right: 2px;
   display: grid;
-  width: 158px;
+  width: 224px;
   gap: 4px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
@@ -244,6 +244,60 @@
 .new-session-menu button:hover {
   background: var(--surface-soft);
   color: var(--text);
+}
+
+.many-session-panel {
+  display: grid;
+  gap: 7px;
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 7px;
+}
+
+.many-session-kinds {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.many-session-kinds button {
+  justify-content: center;
+  gap: 5px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+
+.many-session-kinds button.is-selected {
+  border: 1px solid color-mix(in srgb, var(--good) 42%, var(--line));
+  background: color-mix(in srgb, var(--good) 14%, var(--surface));
+  color: var(--text);
+}
+
+.many-session-count {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.many-session-count input {
+  width: 100%;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0 7px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.many-session-start {
+  justify-content: center !important;
+  border: 1px solid color-mix(in srgb, var(--good) 45%, var(--line)) !important;
+  background: color-mix(in srgb, var(--good) 14%, var(--surface)) !important;
+  color: var(--text) !important;
+  font-weight: 700;
 }
 
 .workspace-color-menu {

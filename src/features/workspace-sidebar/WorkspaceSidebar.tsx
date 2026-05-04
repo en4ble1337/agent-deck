@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   CirclePlus,
+  Cloud,
   FolderPlus,
   Maximize2,
   Paintbrush,
@@ -19,6 +20,19 @@ import { WORKSPACE_ACCENTS, type Workspace } from "@/domain/workspaces";
 import { sessionSignal, sessionSignalLabel } from "@/utils/terminalText";
 import { compactPath, formatShortTime } from "@/utils/time";
 
+type BatchSessionKind = Extract<SessionKind, "terminal" | "codex" | "claude">;
+
+const BATCH_SESSION_LIMIT = 12;
+const BATCH_SESSION_KINDS: Array<{
+  icon: "bot" | "cloud" | "terminal";
+  kind: BatchSessionKind;
+  label: string;
+}> = [
+  { icon: "terminal", kind: "terminal", label: "Terminal" },
+  { icon: "bot", kind: "codex", label: "Codex" },
+  { icon: "cloud", kind: "claude", label: "Claude" },
+];
+
 type Props = {
   workspaces: Workspace[];
   sessions: SessionView[];
@@ -29,6 +43,7 @@ type Props = {
   onChangeColor: (workspace: Workspace, accent: string) => void;
   onChangeTheme: (themeId: BoardThemeId) => void;
   onCloseWorkspace: (workspace: Workspace) => void;
+  onCreateManySessions: (workspaceId: string, kind: BatchSessionKind, count: number) => void;
   onCreateSession: (workspaceId: string, kind: SessionKind) => void;
   onRenameWorkspace: (workspace: Workspace) => void;
   onRestoreSession: (sessionId: string) => void;
@@ -47,6 +62,7 @@ export default function WorkspaceSidebar({
   onChangeColor,
   onChangeTheme,
   onCloseWorkspace,
+  onCreateManySessions,
   onCreateSession,
   onRenameWorkspace,
   onRestoreSession,
@@ -57,6 +73,9 @@ export default function WorkspaceSidebar({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [colorMenuWorkspaceId, setColorMenuWorkspaceId] = useState<string | null>(null);
   const [newSessionMenuWorkspaceId, setNewSessionMenuWorkspaceId] = useState<string | null>(null);
+  const [batchPanelWorkspaceId, setBatchPanelWorkspaceId] = useState<string | null>(null);
+  const [batchSessionKind, setBatchSessionKind] = useState<BatchSessionKind>("terminal");
+  const [batchSessionCount, setBatchSessionCount] = useState(2);
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const [showMore, setShowMore] = useState<Record<string, boolean>>({});
   const sessionsByWorkspace = useMemo(() => {
@@ -145,6 +164,9 @@ export default function WorkspaceSidebar({
                   onClick={() => {
                     setColorMenuWorkspaceId(null);
                     setIsThemeMenuOpen(false);
+                    setBatchPanelWorkspaceId(null);
+                    setBatchSessionKind("terminal");
+                    setBatchSessionCount(2);
                     setNewSessionMenuWorkspaceId((current) =>
                       current === workspace.id ? null : workspace.id,
                     );
@@ -187,14 +209,62 @@ export default function WorkspaceSidebar({
                     Claude
                   </button>
                   <button
+                    aria-expanded={batchPanelWorkspaceId === workspace.id}
                     type="button"
                     onClick={() => {
-                      onCreateSession(workspace.id, "custom");
-                      setNewSessionMenuWorkspaceId(null);
+                      const willOpen = batchPanelWorkspaceId !== workspace.id;
+                      if (willOpen) {
+                        setBatchSessionKind("terminal");
+                        setBatchSessionCount(2);
+                      }
+                      setBatchPanelWorkspaceId(willOpen ? workspace.id : null);
                     }}
                   >
-                    Custom
+                    <CirclePlus size={14} aria-hidden />
+                    Many terminals
                   </button>
+                  {batchPanelWorkspaceId === workspace.id ? (
+                    <div className="many-session-panel">
+                      <div className="many-session-kinds" role="radiogroup" aria-label="Session type">
+                        {BATCH_SESSION_KINDS.map((option) => (
+                          <button
+                            aria-checked={batchSessionKind === option.kind}
+                            className={batchSessionKind === option.kind ? "is-selected" : ""}
+                            key={option.kind}
+                            role="radio"
+                            type="button"
+                            onClick={() => setBatchSessionKind(option.kind)}
+                          >
+                            <BatchSessionIcon icon={option.icon} />
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                      <label className="many-session-count">
+                        <span>Windows</span>
+                        <input
+                          max={BATCH_SESSION_LIMIT}
+                          min={1}
+                          type="number"
+                          value={batchSessionCount}
+                          onChange={(event) =>
+                            setBatchSessionCount(normalizeBatchCount(event.target.value))
+                          }
+                        />
+                      </label>
+                      <button
+                        className="many-session-start"
+                        type="button"
+                        onClick={() => {
+                          onCreateManySessions(workspace.id, batchSessionKind, batchSessionCount);
+                          setBatchPanelWorkspaceId(null);
+                          setNewSessionMenuWorkspaceId(null);
+                        }}
+                      >
+                        Start
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -276,6 +346,7 @@ export default function WorkspaceSidebar({
                   onClick={() => {
                     setNewSessionMenuWorkspaceId(null);
                     setIsThemeMenuOpen(false);
+                    setBatchPanelWorkspaceId(null);
                     setColorMenuWorkspaceId((current) =>
                       current === workspace.id ? null : workspace.id,
                     );
@@ -326,6 +397,7 @@ export default function WorkspaceSidebar({
             onClick={() => {
               setColorMenuWorkspaceId(null);
               setNewSessionMenuWorkspaceId(null);
+              setBatchPanelWorkspaceId(null);
               setIsThemeMenuOpen((current) => !current);
             }}
           >
@@ -369,4 +441,23 @@ export default function WorkspaceSidebar({
       </footer>
     </aside>
   );
+}
+
+function BatchSessionIcon({ icon }: { icon: "bot" | "cloud" | "terminal" }) {
+  switch (icon) {
+    case "bot":
+      return <Bot size={13} aria-hidden />;
+    case "cloud":
+      return <Cloud size={13} aria-hidden />;
+    case "terminal":
+      return <Terminal size={13} aria-hidden />;
+  }
+}
+
+function normalizeBatchCount(value: string): number {
+  const count = Number.parseInt(value, 10);
+  if (!Number.isFinite(count)) {
+    return 1;
+  }
+  return Math.min(BATCH_SESSION_LIMIT, Math.max(1, count));
 }
