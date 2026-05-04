@@ -31,6 +31,7 @@ fn main() {
             commands::sessions::session_create,
             commands::sessions::session_start,
             commands::sessions::session_write,
+            commands::sessions::session_save_attachment,
             commands::sessions::session_resize,
             commands::sessions::session_stop,
             commands::sessions::session_restart,

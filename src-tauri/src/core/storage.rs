@@ -11,13 +11,14 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::models::{
-    CommandPreset, SessionCreateRequest, SessionKind, SessionStatus, SessionView, TerminalSession,
-    Workspace, WorkspacePatch,
+    CommandPreset, SessionAttachment, SessionAttachmentSaveRequest, SessionCreateRequest,
+    SessionKind, SessionStatus, SessionView, TerminalSession, Workspace, WorkspacePatch,
 };
 
 pub type SharedStorage = Arc<Mutex<Storage>>;
 
 const TRANSCRIPT_TAIL_BYTES: usize = 24 * 1024;
+const MAX_ATTACHMENT_BYTES: usize = 20 * 1024 * 1024;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -300,6 +301,54 @@ impl Storage {
         })
     }
 
+    pub fn save_session_attachment(
+        &self,
+        session_id: &str,
+        request: SessionAttachmentSaveRequest,
+    ) -> Result<SessionAttachment, String> {
+        let session = self.get_session(session_id)?;
+        if !request.mime_type.starts_with("image/") {
+            return Err("Only image attachments can be pasted here".to_string());
+        }
+        if request.bytes.is_empty() {
+            return Err("Pasted image was empty".to_string());
+        }
+        if request.bytes.len() > MAX_ATTACHMENT_BYTES {
+            return Err("Pasted image is too large".to_string());
+        }
+
+        let workspace_path = Path::new(&session.cwd);
+        if !workspace_path.is_dir() {
+            return Err("Workspace folder no longer exists".to_string());
+        }
+        let file_name = attachment_file_name(
+            request.file_name.as_deref(),
+            &request.mime_type,
+            request.bytes.as_slice(),
+        );
+        let unique_name = format!("{}-{}-{file_name}", now_ms(), short_uuid());
+        let attachment_dir = workspace_path
+            .join(".workspace-deck")
+            .join("attachments")
+            .join(&session.id);
+        fs::create_dir_all(&attachment_dir)
+            .map_err(|error| format!("Failed to create attachment folder: {error}"))?;
+        let path = attachment_dir.join(unique_name);
+        fs::write(&path, &request.bytes)
+            .map_err(|error| format!("Failed to save pasted image: {error}"))?;
+
+        Ok(SessionAttachment {
+            path: path.to_string_lossy().to_string(),
+            file_name: path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("pasted-image.png")
+                .to_string(),
+            mime_type: request.mime_type,
+            size: request.bytes.len(),
+        })
+    }
+
     pub fn update_session_status(
         &mut self,
         session_id: &str,
@@ -516,4 +565,51 @@ fn read_file_tail(path: &Path, limit: usize) -> Result<String, String> {
     file.read_to_end(&mut buffer)
         .map_err(|error| format!("Failed to read transcript: {error}"))?;
     Ok(String::from_utf8_lossy(&buffer).to_string())
+}
+
+fn attachment_file_name(file_name: Option<&str>, mime_type: &str, bytes: &[u8]) -> String {
+    let candidate = file_name
+        .map(sanitize_file_name)
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| "pasted-image".to_string());
+    let path = Path::new(&candidate);
+    if path.extension().and_then(|ext| ext.to_str()).is_some() {
+        candidate
+    } else {
+        format!("{candidate}.{}", image_extension(mime_type, bytes))
+    }
+}
+
+fn sanitize_file_name(file_name: &str) -> String {
+    file_name
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '_') {
+                ch
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .trim_matches(|ch| matches!(ch, '.' | '-' | '_'))
+        .to_string()
+}
+
+fn image_extension(mime_type: &str, bytes: &[u8]) -> &'static str {
+    match mime_type {
+        "image/jpeg" => "jpg",
+        "image/gif" => "gif",
+        "image/webp" => "webp",
+        "image/bmp" => "bmp",
+        "image/svg+xml" => "svg",
+        "image/png" => "png",
+        _ if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) => "jpg",
+        _ if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") => "gif",
+        _ if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(&b"WEBP"[..]) => "webp",
+        _ => "png",
+    }
+}
+
+fn short_uuid() -> String {
+    Uuid::new_v4().to_string()[..8].to_string()
 }

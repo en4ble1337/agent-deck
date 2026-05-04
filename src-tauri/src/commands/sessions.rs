@@ -1,7 +1,10 @@
 use tauri::State;
 
 use crate::{
-    models::{SessionCreateRequest, SessionStatus, SessionView},
+    models::{
+        SessionAttachment, SessionAttachmentSaveRequest, SessionCreateRequest, SessionStatus,
+        SessionView,
+    },
     state::AppState,
 };
 
@@ -54,6 +57,16 @@ pub async fn session_write(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     state.terminals.write(&session_id, data).await
+}
+
+#[tauri::command]
+pub async fn session_save_attachment(
+    session_id: String,
+    request: SessionAttachmentSaveRequest,
+    state: State<'_, AppState>,
+) -> Result<SessionAttachment, String> {
+    let storage = state.storage.lock().await;
+    storage.save_session_attachment(&session_id, request)
 }
 
 #[tauri::command]

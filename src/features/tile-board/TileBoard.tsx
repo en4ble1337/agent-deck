@@ -9,8 +9,10 @@ import {
   Terminal,
 } from "lucide-react";
 import { useState, type ClipboardEvent, type CSSProperties } from "react";
-import type { SessionKind, SessionView } from "@/domain/sessions";
+import type { SessionAttachment, SessionKind, SessionView } from "@/domain/sessions";
 import type { Workspace } from "@/domain/workspaces";
+import { sessionSaveAttachment } from "@/services/ipc";
+import { isTauriRuntime } from "@/services/runtime";
 import {
   sessionSignal,
   sessionSignalLabel,
@@ -175,7 +177,14 @@ export default function TileBoard({
                     [session.id]: event.target.value,
                   }));
                 }}
-                onPaste={(event) => handleQuickInputPaste(event, session.id, setPasteNotices)}
+                onPaste={(event) => {
+                  void handleQuickInputPaste(
+                    event,
+                    session,
+                    setDrafts,
+                    setPasteNotices,
+                  );
+                }}
                 placeholder={
                   session.hasProcess ? quickInputPlaceholder(session.kind) : "Start session to type"
                 }
@@ -204,17 +213,76 @@ export default function TileBoard({
 
 function handleQuickInputPaste(
   event: ClipboardEvent<HTMLInputElement>,
-  sessionId: string,
+  session: SessionView,
+  setDrafts: (updater: (current: Record<string, string>) => Record<string, string>) => void,
   setPasteNotices: (updater: (current: Record<string, string>) => Record<string, string>) => void,
 ) {
-  const hasImage = [...event.clipboardData.items].some(
-    (item) => item.kind === "file" && item.type.startsWith("image/"),
-  );
-  if (!hasImage) {
+  const image = pastedImageFile(event.clipboardData.items);
+  if (!image) {
     return;
   }
   event.preventDefault();
-  const message = "Image paste is not wired here yet. Paste text or an image file path.";
+  if (!isTauriRuntime()) {
+    showQuickInputNotice(
+      session.id,
+      "Image paste works in the desktop app so the image can be saved as a local file.",
+      setPasteNotices,
+    );
+    return;
+  }
+
+  savePastedImage(session, image)
+    .then((attachment) => {
+      setDrafts((current) => appendDraftText(current, session.id, attachmentReference(attachment)));
+      showQuickInputNotice(session.id, "Image saved and path added.", setPasteNotices);
+    })
+    .catch((caught: unknown) => {
+      showQuickInputNotice(session.id, errorMessage(caught), setPasteNotices);
+    });
+}
+
+function pastedImageFile(items: DataTransferItemList): File | null {
+  for (const item of [...items]) {
+    if (item.kind === "file" && item.type.startsWith("image/")) {
+      return item.getAsFile();
+    }
+  }
+  return null;
+}
+
+async function savePastedImage(
+  session: SessionView,
+  image: File,
+): Promise<SessionAttachment> {
+  const bytes = Array.from(new Uint8Array(await image.arrayBuffer()));
+  return sessionSaveAttachment(session.id, {
+    fileName: image.name || undefined,
+    mimeType: image.type || "image/png",
+    bytes,
+  });
+}
+
+function appendDraftText(
+  drafts: Record<string, string>,
+  sessionId: string,
+  text: string,
+): Record<string, string> {
+  const current = drafts[sessionId] ?? "";
+  return {
+    ...drafts,
+    [sessionId]: current.trim().length > 0 ? `${current.trimEnd()} ${text}` : text,
+  };
+}
+
+function attachmentReference(attachment: SessionAttachment): string {
+  return `"${attachment.path}"`;
+}
+
+function showQuickInputNotice(
+  sessionId: string,
+  message: string,
+  setPasteNotices: (updater: (current: Record<string, string>) => Record<string, string>) => void,
+) {
   setPasteNotices((current) => ({ ...current, [sessionId]: message }));
   window.setTimeout(() => {
     setPasteNotices((current) =>
@@ -285,6 +353,10 @@ function quickInputPlaceholder(kind: SessionKind): string {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function errorMessage(caught: unknown): string {
+  return caught instanceof Error ? caught.message : String(caught);
 }
 
 function compareSessions(left: SessionView, right: SessionView): number {

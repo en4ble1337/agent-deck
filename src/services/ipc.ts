@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { CommandPreset } from "@/domain/presets";
 import type {
+  SessionAttachment,
+  SessionAttachmentSaveRequest,
   SessionCreateRequest,
   SessionView,
 } from "@/domain/sessions";
@@ -91,6 +93,16 @@ export function sessionWrite(sessionId: string, data: string): Promise<void> {
     return mockBackend.sessionWrite(sessionId, data);
   }
   return invoke("session_write", { sessionId, data });
+}
+
+export function sessionSaveAttachment(
+  sessionId: string,
+  request: SessionAttachmentSaveRequest,
+): Promise<SessionAttachment> {
+  if (!isTauriRuntime()) {
+    return mockBackend.sessionSaveAttachment(sessionId, request);
+  }
+  return invoke("session_save_attachment", { sessionId, request });
 }
 
 export function sessionResize(

@@ -1,5 +1,7 @@
 import type { CommandPreset } from "@/domain/presets";
 import type {
+  SessionAttachment,
+  SessionAttachmentSaveRequest,
   SessionCreateRequest,
   SessionKind,
   SessionOutputEvent,
@@ -145,6 +147,13 @@ export const mockBackend = {
       status: "running",
     });
     emitOutput(session, output);
+  },
+
+  sessionSaveAttachment: async (
+    _sessionId: string,
+    _request: SessionAttachmentSaveRequest,
+  ): Promise<SessionAttachment> => {
+    throw new Error("Image paste needs the desktop app so Workspace Deck can save a local file path.");
   },
 
   sessionResize: async (): Promise<void> => {},

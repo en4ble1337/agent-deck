@@ -47,6 +47,19 @@ export type SessionCreateRequest = {
   customCommand?: string;
 };
 
+export type SessionAttachmentSaveRequest = {
+  fileName?: string;
+  mimeType: string;
+  bytes: number[];
+};
+
+export type SessionAttachment = {
+  path: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+};
+
 export type SessionOutputEvent = {
   sessionId: string;
   workspaceId: string;

@@ -17,6 +17,7 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+.workspace-deck/
 
 # Editor and OS files
 .vscode/*

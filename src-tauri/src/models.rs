@@ -98,6 +98,23 @@ pub struct SessionCreateRequest {
     pub custom_command: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionAttachmentSaveRequest {
+    pub file_name: Option<String>,
+    pub mime_type: String,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionAttachment {
+    pub path: String,
+    pub file_name: String,
+    pub mime_type: String,
+    pub size: usize,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionOutputEvent {
