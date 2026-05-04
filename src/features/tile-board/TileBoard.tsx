@@ -28,6 +28,7 @@ type Props = {
   minimizedSessionIds: ReadonlySet<string>;
   onArchive: (sessionId: string) => void;
   onCreateSession: (workspaceId: string, kind: SessionKind) => void;
+  onEnsureRunning: (sessionId: string) => Promise<SessionView>;
   onFocus: (sessionId: string) => void;
   onMinimize: (sessionId: string) => void;
   onRestart: (sessionId: string) => void;
@@ -43,6 +44,7 @@ export default function TileBoard({
   minimizedSessionIds,
   onArchive,
   onCreateSession,
+  onEnsureRunning,
   onFocus,
   onMinimize,
   onRestart,
@@ -165,13 +167,15 @@ export default function TileBoard({
                   draft,
                   setDrafts,
                   setSendingSessionIds,
+                  setPasteNotices,
+                  onEnsureRunning,
                   onWrite,
                 );
               }}
             >
               <input
                 aria-label={`Type into ${session.title}`}
-                disabled={!session.hasProcess || isSending}
+                disabled={isSending}
                 onChange={(event) => {
                   setPasteNotices((current) => removeSessionNotice(current, session.id));
                   setDrafts((current) => ({
@@ -188,13 +192,13 @@ export default function TileBoard({
                   );
                 }}
                 placeholder={
-                  session.hasProcess ? quickInputPlaceholder(session.kind) : "Start session to type"
+                  session.hasProcess ? quickInputPlaceholder(session.kind) : "Type to start and send"
                 }
                 value={draft}
               />
               <button
                 className="quick-send-button"
-                disabled={!session.hasProcess || isSending || draft.length === 0}
+                disabled={isSending || draft.length === 0}
                 title="Send to terminal"
                 type="submit"
               >
@@ -325,6 +329,8 @@ async function sendQuickInput(
   setSendingSessionIds: (
     updater: (current: Record<string, boolean>) => Record<string, boolean>,
   ) => void,
+  setPasteNotices: (updater: (current: Record<string, string>) => Record<string, string>) => void,
+  onEnsureRunning: (sessionId: string) => Promise<SessionView>,
   onWrite: (sessionId: string, data: string) => Promise<void>,
 ) {
   if (draft.length === 0) {
@@ -332,15 +338,45 @@ async function sendQuickInput(
   }
   setSendingSessionIds((current) => ({ ...current, [session.id]: true }));
   try {
-    await sendQuickLine(session, draft, onWrite);
+    const writableSession = session.hasProcess
+      ? session
+      : await startSessionForQuickInput(session, onEnsureRunning, setPasteNotices);
+    await sendQuickLineWithRetry(writableSession, draft, onWrite, onEnsureRunning);
     setDrafts((current) => ({
       ...current,
       [session.id]: "",
     }));
-  } catch {
-    return;
+    setPasteNotices((current) => removeSessionNotice(current, session.id));
+  } catch (caught) {
+    showQuickInputNotice(session.id, errorMessage(caught), setPasteNotices);
   } finally {
     setSendingSessionIds((current) => ({ ...current, [session.id]: false }));
+  }
+}
+
+async function startSessionForQuickInput(
+  session: SessionView,
+  onEnsureRunning: (sessionId: string) => Promise<SessionView>,
+  setPasteNotices: (updater: (current: Record<string, string>) => Record<string, string>) => void,
+): Promise<SessionView> {
+  showQuickInputNotice(session.id, "Starting session to send command.", setPasteNotices);
+  return onEnsureRunning(session.id);
+}
+
+async function sendQuickLineWithRetry(
+  session: SessionView,
+  text: string,
+  onWrite: (sessionId: string, data: string) => Promise<void>,
+  onEnsureRunning: (sessionId: string) => Promise<SessionView>,
+) {
+  try {
+    await sendQuickLine(session, text, onWrite);
+  } catch (caught) {
+    if (!isSessionNotRunningError(caught)) {
+      throw caught;
+    }
+    const restarted = await onEnsureRunning(session.id);
+    await sendQuickLine(restarted, text, onWrite);
   }
 }
 
@@ -368,6 +404,10 @@ function quickInputPlaceholder(kind: SessionKind): string {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isSessionNotRunningError(caught: unknown): boolean {
+  return errorMessage(caught).toLowerCase().includes("not running");
 }
 
 function errorMessage(caught: unknown): string {

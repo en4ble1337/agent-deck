@@ -272,15 +272,17 @@ export default function App() {
     [runAction],
   );
 
+  const handleEnsureSessionRunning = useCallback(async (sessionId: string) => {
+    setError(null);
+    const started = await sessionStart(sessionId, DEFAULT_COLS, DEFAULT_ROWS);
+    setMinimizedSessionIds((current) => removeSessionId(current, started.id));
+    setSessions((current) => upsertById(current, started));
+    return started;
+  }, []);
+
   const handleWriteToSession = useCallback(async (sessionId: string, data: string) => {
-    try {
-      setError(null);
-      await sessionWrite(sessionId, data);
-    } catch (caught) {
-      const message = errorMessage(caught);
-      setError(message);
-      throw new Error(message);
-    }
+    setError(null);
+    await sessionWrite(sessionId, data);
   }, []);
 
   const handleArchiveSession = useCallback(
@@ -413,6 +415,7 @@ export default function App() {
             minimizedSessionIds={minimizedSessionIds}
             onArchive={handleArchiveSession}
             onCreateSession={handleCreateSession}
+            onEnsureRunning={handleEnsureSessionRunning}
             onFocus={setFocusedSessionId}
             onMinimize={handleMinimizeSession}
             onRestart={handleRestartSession}
