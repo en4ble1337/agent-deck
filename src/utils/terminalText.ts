@@ -6,6 +6,7 @@ const ANSI_PATTERN =
 const MAX_RENDER_INPUT = 80_000;
 const MAX_BUFFER_LINES = 220;
 const MAX_PREVIEW_LINES = 140;
+const MAX_CODEX_PREVIEW_LINES = 28;
 const VIRTUAL_COLUMNS = 140;
 
 const NEEDS_INPUT_PATTERNS = [
@@ -30,9 +31,64 @@ const NEEDS_INPUT_PATTERNS = [
 ];
 
 export type SessionSignal = "needs-input" | "running" | "idle" | "exited" | "failed";
+export type TerminalTilePreview =
+  | {
+      kind: "text";
+      text: string;
+    }
+  | {
+      detail: string;
+      kind: "status";
+      title: string;
+      tone: "needs-input" | "ready" | "working";
+    };
 
 export function terminalPreviewText(raw: string): string {
   return cleanPreview(renderTerminalScreen(raw.slice(-MAX_RENDER_INPUT)));
+}
+
+export function terminalTilePreview(
+  session: SessionView,
+  signal: SessionSignal,
+): TerminalTilePreview {
+  const preview = terminalPreviewText(session.outputTail);
+  if (session.kind !== "codex") {
+    return { kind: "text", text: preview };
+  }
+
+  const codexPreview = cleanCodexPreview(preview);
+  if (signal === "needs-input") {
+    return {
+      detail: "Approval or login is waiting.",
+      kind: "status",
+      title: "Codex needs input",
+      tone: "needs-input",
+    };
+  }
+
+  if (isCodexWorking(session, signal, preview, codexPreview)) {
+    return {
+      detail: "Waiting for a clean response.",
+      kind: "status",
+      title: "Codex is working",
+      tone: "working",
+    };
+  }
+
+  if (codexPreview.length > 0) {
+    return { kind: "text", text: codexPreview };
+  }
+
+  if (session.hasProcess) {
+    return {
+      detail: "Ready for the next prompt.",
+      kind: "status",
+      title: "Codex is ready",
+      tone: "ready",
+    };
+  }
+
+  return { kind: "text", text: preview };
 }
 
 export function sessionSignal(session: SessionView): SessionSignal {
@@ -65,6 +121,113 @@ export function sessionSignalLabel(signal: SessionSignal): string {
 
 function stripAnsi(raw: string): string {
   return raw.replace(ANSI_PATTERN, "");
+}
+
+function cleanCodexPreview(preview: string): string {
+  const lines = preview
+    .split("\n")
+    .map((line) => normalizeCodexLine(line))
+    .filter((line) => !isCodexNoiseLine(line));
+  const result: string[] = [];
+  let blankCount = 0;
+  let lastTextLine = "";
+
+  for (const line of lines) {
+    if (line.length === 0) {
+      blankCount += 1;
+      if (blankCount <= 1 && result.length > 0) {
+        result.push("");
+      }
+      continue;
+    }
+    blankCount = 0;
+    if (line === lastTextLine) {
+      continue;
+    }
+    result.push(line);
+    lastTextLine = line;
+  }
+
+  return result
+    .slice(-MAX_CODEX_PREVIEW_LINES)
+    .join("\n")
+    .trim();
+}
+
+function normalizeCodexLine(line: string): string {
+  return line
+    .trimEnd()
+    .replace(/^[•·]\s*/, "• ")
+    .replace(/^•\s*(Working|Thinking|Running|Reading|Searching|Planning)$/i, "$1")
+    .trimEnd();
+}
+
+function isCodexNoiseLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (trimmed.length === 0) {
+    return false;
+  }
+  const withoutBullet = trimmed.replace(/^[•·]\s*/, "");
+  return (
+    isCodexBusyLine(trimmed) ||
+    isCodexPromptLine(trimmed) ||
+    /^›\s+/.test(trimmed) ||
+    /^OpenAI Codex\b/i.test(trimmed) ||
+    /^model:\s+/i.test(trimmed) ||
+    /^directory:\s+/i.test(trimmed) ||
+    /^Tip:\s+/i.test(trimmed) ||
+    /^Ignoring malformed agent role definition:/i.test(trimmed) ||
+    /^Starting MCP servers/i.test(trimmed) ||
+    /^K$/.test(trimmed) ||
+    /^[─━═╭╮╰╯│┌┐└┘+\-\s]+$/.test(trimmed) ||
+    /^[╭╮╰╯│┌┐└┘].*[╭╮╰╯│┌┐└┘]$/.test(trimmed) ||
+    /^(Working|Thinking|Running|Reading|Searching|Planning|Checking|Editing|Writing|Applying|Testing|Building)\.?$/i.test(
+      withoutBullet,
+    )
+  );
+}
+
+function isCodexWorking(
+  session: SessionView,
+  signal: SessionSignal,
+  preview: string,
+  codexPreview: string,
+): boolean {
+  if (!session.hasProcess || signal !== "running") {
+    return false;
+  }
+
+  const lines = preview.split("\n").map((line) => normalizeCodexLine(line).trim());
+  const lastBusyIndex = findLastIndex(lines, isCodexBusyLine);
+  const lastPromptIndex = findLastIndex(lines, isCodexPromptLine);
+  if (lastBusyIndex === -1) {
+    return codexPreview.length === 0 && lastPromptIndex === -1;
+  }
+
+  const lastReadableIndex = findLastIndex(
+    lines,
+    (line) => line.length > 0 && !isCodexNoiseLine(line),
+  );
+  return lastBusyIndex > Math.max(lastPromptIndex, lastReadableIndex);
+}
+
+function isCodexBusyLine(line: string): boolean {
+  return /^[•·]?\s*(Working|Thinking|Running|Reading|Searching|Planning|Checking|Editing|Writing|Applying|Testing|Building)\.?\s*$/i.test(
+    line.trim(),
+  );
+}
+
+function isCodexPromptLine(line: string): boolean {
+  return /^gpt[-\w.]*\s+.*[·.]\s+/i.test(line.trim());
+}
+
+function findLastIndex<T>(items: T[], predicate: (item: T) => boolean): number {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    if (predicate(items[index])) {
+      return index;
+    }
+  }
+  return -1;
 }
 
 function needsInput(raw: string): boolean {

@@ -1,6 +1,9 @@
 import {
+  AlertTriangle,
   Archive,
+  LoaderCircle,
   Maximize2,
+  MessageSquareText,
   Minimize2,
   Play,
   RotateCcw,
@@ -16,7 +19,8 @@ import { isTauriRuntime } from "@/services/runtime";
 import {
   sessionSignal,
   sessionSignalLabel,
-  terminalPreviewText,
+  terminalTilePreview,
+  type TerminalTilePreview,
 } from "@/utils/terminalText";
 import { codexSubmitData } from "@/utils/codexTerminalKeys";
 import { formatShortTime } from "@/utils/time";
@@ -99,8 +103,8 @@ export default function TileBoard({
     <div className={`tile-grid tile-grid-count-${gridDensity}`}>
       {visibleSessions.map((session) => {
         const workspace = workspaceById.get(session.workspaceId);
-        const preview = terminalPreviewText(session.outputTail);
         const signal = sessionSignal(session);
+        const preview = terminalTilePreview(session, signal);
         const signalLabel = sessionSignalLabel(signal);
         const draft = drafts[session.id] ?? "";
         const pasteNotice = pasteNotices[session.id] ?? null;
@@ -154,9 +158,7 @@ export default function TileBoard({
               <span>{formatShortTime(session.lastActiveAt)}</span>
             </div>
             <button className="terminal-tail" type="button" onClick={() => onFocus(session.id)}>
-              <TerminalPreviewText
-                text={preview || "Session is ready. Type below or open the full terminal."}
-              />
+              <TerminalPreviewContent preview={preview} />
             </button>
             <form
               className="quick-input-form"
@@ -214,6 +216,31 @@ export default function TileBoard({
         );
       })}
     </div>
+  );
+}
+
+function TerminalPreviewContent({ preview }: { preview: TerminalTilePreview }) {
+  if (preview.kind === "status") {
+    const Icon =
+      preview.tone === "needs-input"
+        ? AlertTriangle
+        : preview.tone === "working"
+          ? LoaderCircle
+          : MessageSquareText;
+    return (
+      <div className={`tile-status-preview tone-${preview.tone}`}>
+        <span className="tile-status-icon">
+          <Icon size={20} aria-hidden />
+        </span>
+        <strong>{preview.title}</strong>
+        <small>{preview.detail}</small>
+      </div>
+    );
+  }
+  return (
+    <TerminalPreviewText
+      text={preview.text || "Session is ready. Type below or open the full terminal."}
+    />
   );
 }
 
