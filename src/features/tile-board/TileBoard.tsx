@@ -8,7 +8,7 @@ import {
   Square,
   Terminal,
 } from "lucide-react";
-import { useState, type ClipboardEvent, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent, type CSSProperties } from "react";
 import type { SessionAttachment, SessionKind, SessionView } from "@/domain/sessions";
 import type { Workspace } from "@/domain/workspaces";
 import { sessionSaveAttachment } from "@/services/ipc";
@@ -152,7 +152,9 @@ export default function TileBoard({
               <span>{formatShortTime(session.lastActiveAt)}</span>
             </div>
             <button className="terminal-tail" type="button" onClick={() => onFocus(session.id)}>
-              <pre>{preview || "Session is ready. Type below or open the full terminal."}</pre>
+              <TerminalPreviewText
+                text={preview || "Session is ready. Type below or open the full terminal."}
+              />
             </button>
             <form
               className="quick-input-form"
@@ -209,6 +211,19 @@ export default function TileBoard({
       })}
     </div>
   );
+}
+
+function TerminalPreviewText({ text }: { text: string }) {
+  const previewRef = useRef<HTMLPreElement | null>(null);
+
+  useEffect(() => {
+    const preview = previewRef.current;
+    if (preview) {
+      preview.scrollTop = preview.scrollHeight;
+    }
+  }, [text]);
+
+  return <pre ref={previewRef}>{text}</pre>;
 }
 
 function handleQuickInputPaste(
