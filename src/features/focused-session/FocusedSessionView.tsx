@@ -85,6 +85,7 @@ export default function FocusedSessionView({
 
     const resize = () => {
       fitAddon.fit();
+      terminal.scrollToBottom();
       void sessionResize(session.id, terminal.cols, terminal.rows);
     };
     const resizeObserver = new ResizeObserver(resize);
@@ -93,7 +94,7 @@ export default function FocusedSessionView({
 
     void sessionReadTranscript(session.id).then((transcript) => {
       if (transcript) {
-        terminal.write(transcript);
+        writeAndFollow(terminal, transcript);
       }
       terminal.focus();
     });
@@ -105,7 +106,7 @@ export default function FocusedSessionView({
     let unlistenOutput: (() => void) | undefined;
     void onSessionOutput((event) => {
       if (event.payload.sessionId === session.id) {
-        terminal.write(event.payload.data);
+        writeAndFollow(terminal, event.payload.data);
       }
     }).then((unlisten) => {
       unlistenOutput = unlisten;
@@ -170,4 +171,10 @@ export default function FocusedSessionView({
 function cssVar(name: string, fallback: string): string {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
+}
+
+function writeAndFollow(terminal: XtermTerminal, data: string) {
+  terminal.write(data, () => {
+    terminal.scrollToBottom();
+  });
 }
