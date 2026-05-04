@@ -10,6 +10,7 @@ import {
   sessionResize,
   sessionWrite,
 } from "@/services/ipc";
+import { codexDataForKeyEvent, isCodexEnterEvent } from "@/utils/codexTerminalKeys";
 import { compactPath } from "@/utils/time";
 
 type Props = {
@@ -68,6 +69,20 @@ export default function FocusedSessionView({
     terminal.open(container);
     terminalRef.current = terminal;
 
+    terminal.attachCustomKeyEventHandler((event) => {
+      if (!isCodexEnterEvent(session.kind, event)) {
+        return true;
+      }
+      const data = codexDataForKeyEvent(event);
+
+      event.preventDefault();
+      event.stopPropagation();
+      if (data !== null) {
+        void sessionWrite(session.id, data);
+      }
+      return false;
+    });
+
     const resize = () => {
       fitAddon.fit();
       void sessionResize(session.id, terminal.cols, terminal.rows);
@@ -103,7 +118,7 @@ export default function FocusedSessionView({
       terminal.dispose();
       terminalRef.current = null;
     };
-  }, [session.id, workspace.accent]);
+  }, [session.id, session.kind, workspace.accent]);
 
   useEffect(() => {
     terminalRef.current?.focus();
@@ -124,7 +139,7 @@ export default function FocusedSessionView({
           <div>
             <h1>{session.title}</h1>
             <p>
-              {workspace.name} · {compactPath(workspace.path)} · {session.status}
+              {workspace.name} - {compactPath(workspace.path)} - {session.status}
             </p>
           </div>
         </div>

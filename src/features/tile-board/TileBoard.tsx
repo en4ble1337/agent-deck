@@ -16,6 +16,7 @@ import {
   sessionSignalLabel,
   terminalPreviewText,
 } from "@/utils/terminalText";
+import { codexSubmitData } from "@/utils/codexTerminalKeys";
 import { formatShortTime } from "@/utils/time";
 
 type Props = {
@@ -266,7 +267,7 @@ async function sendQuickLine(
   if (session.kind === "codex") {
     await onWrite(session.id, bracketedPaste(text));
     await sleep(80);
-    await onWrite(session.id, "\r");
+    await onWrite(session.id, codexSubmitData());
     return;
   }
   await onWrite(session.id, `${text}\r`);
