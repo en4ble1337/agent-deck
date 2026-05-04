@@ -8,7 +8,7 @@ import {
   Square,
   Terminal,
 } from "lucide-react";
-import { useState, type CSSProperties } from "react";
+import { useState, type ClipboardEvent, type CSSProperties } from "react";
 import type { SessionKind, SessionView } from "@/domain/sessions";
 import type { Workspace } from "@/domain/workspaces";
 import {
@@ -48,6 +48,7 @@ export default function TileBoard({
   onWrite,
 }: Props) {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [pasteNotices, setPasteNotices] = useState<Record<string, string>>({});
   const [sendingSessionIds, setSendingSessionIds] = useState<Record<string, boolean>>({});
   const workspaceById = new Map(workspaces.map((workspace) => [workspace.id, workspace]));
   const visibleSessions = sessions
@@ -95,6 +96,7 @@ export default function TileBoard({
         const signal = sessionSignal(session);
         const signalLabel = sessionSignalLabel(signal);
         const draft = drafts[session.id] ?? "";
+        const pasteNotice = pasteNotices[session.id] ?? null;
         const isSending = sendingSessionIds[session.id] === true;
         return (
           <article
@@ -163,12 +165,14 @@ export default function TileBoard({
               <input
                 aria-label={`Type into ${session.title}`}
                 disabled={!session.hasProcess || isSending}
-                onChange={(event) =>
+                onChange={(event) => {
+                  setPasteNotices((current) => removeSessionNotice(current, session.id));
                   setDrafts((current) => ({
                     ...current,
                     [session.id]: event.target.value,
-                  }))
-                }
+                  }));
+                }}
+                onPaste={(event) => handleQuickInputPaste(event, session.id, setPasteNotices)}
                 placeholder={
                   session.hasProcess ? quickInputPlaceholder(session.kind) : "Start session to type"
                 }
@@ -182,12 +186,50 @@ export default function TileBoard({
               >
                 <SendHorizontal size={15} aria-hidden />
               </button>
+              {pasteNotice ? (
+                <div className="quick-input-notice" role="status">
+                  {pasteNotice}
+                </div>
+              ) : null}
             </form>
           </article>
         );
       })}
     </div>
   );
+}
+
+function handleQuickInputPaste(
+  event: ClipboardEvent<HTMLInputElement>,
+  sessionId: string,
+  setPasteNotices: (updater: (current: Record<string, string>) => Record<string, string>) => void,
+) {
+  const hasImage = [...event.clipboardData.items].some(
+    (item) => item.kind === "file" && item.type.startsWith("image/"),
+  );
+  if (!hasImage) {
+    return;
+  }
+  event.preventDefault();
+  const message = "Image paste is not wired here yet. Paste text or an image file path.";
+  setPasteNotices((current) => ({ ...current, [sessionId]: message }));
+  window.setTimeout(() => {
+    setPasteNotices((current) =>
+      current[sessionId] === message ? removeSessionNotice(current, sessionId) : current,
+    );
+  }, 4500);
+}
+
+function removeSessionNotice(
+  notices: Record<string, string>,
+  sessionId: string,
+): Record<string, string> {
+  if (!(sessionId in notices)) {
+    return notices;
+  }
+  const next = { ...notices };
+  delete next[sessionId];
+  return next;
 }
 
 async function sendQuickInput(
