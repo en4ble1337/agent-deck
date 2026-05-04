@@ -223,7 +223,6 @@ export default function App() {
         const started = await sessionStart(created.id, DEFAULT_COLS, DEFAULT_ROWS);
         setMinimizedSessionIds((current) => removeSessionId(current, started.id));
         setSessions((current) => upsertById(current, started));
-        setFocusedSessionId(started.id);
       });
     },
     [runAction],
