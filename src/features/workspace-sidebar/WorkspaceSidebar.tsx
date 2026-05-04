@@ -52,6 +52,7 @@ export default function WorkspaceSidebar({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [colorMenuWorkspaceId, setColorMenuWorkspaceId] = useState<string | null>(null);
   const [newSessionMenuWorkspaceId, setNewSessionMenuWorkspaceId] = useState<string | null>(null);
+  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const [showMore, setShowMore] = useState<Record<string, boolean>>({});
   const sessionsByWorkspace = useMemo(() => {
     const map = new Map<string, SessionView[]>();
@@ -138,6 +139,7 @@ export default function WorkspaceSidebar({
                   type="button"
                   onClick={() => {
                     setColorMenuWorkspaceId(null);
+                    setIsThemeMenuOpen(false);
                     setNewSessionMenuWorkspaceId((current) =>
                       current === workspace.id ? null : workspace.id,
                     );
@@ -253,6 +255,7 @@ export default function WorkspaceSidebar({
                   type="button"
                   onClick={() => {
                     setNewSessionMenuWorkspaceId(null);
+                    setIsThemeMenuOpen(false);
                     setColorMenuWorkspaceId((current) =>
                       current === workspace.id ? null : workspace.id,
                     );
@@ -294,38 +297,54 @@ export default function WorkspaceSidebar({
 
       <footer className="sidebar-footer">
         <div className="theme-picker">
-          <div className="theme-picker-title">
-            <Palette size={14} aria-hidden />
-            Theme
-          </div>
-          <div className="theme-options" role="listbox" aria-label="Theme">
-            {BOARD_THEMES.map((theme) => (
-              <button
-                aria-label={`${theme.name} theme`}
-                aria-selected={themeId === theme.id}
-                className={`theme-option ${themeId === theme.id ? "is-selected" : ""}`}
-                key={theme.id}
-                role="option"
-                style={
-                  {
-                    "--theme-bg": theme.swatches[0],
-                    "--theme-surface": theme.swatches[1],
-                    "--theme-accent": theme.swatches[2],
-                  } as CSSProperties
-                }
-                title={`${theme.name} theme`}
-                type="button"
-                onClick={() => onChangeTheme(theme.id)}
-              >
-                <span className="theme-swatch" aria-hidden>
-                  <span />
-                  <span />
-                  <span />
-                </span>
-                <span>{theme.name}</span>
-              </button>
-            ))}
-          </div>
+          <button
+            aria-expanded={isThemeMenuOpen}
+            aria-label="Theme"
+            className={`theme-trigger ${isThemeMenuOpen ? "is-active" : ""}`}
+            title="Theme"
+            type="button"
+            onClick={() => {
+              setColorMenuWorkspaceId(null);
+              setNewSessionMenuWorkspaceId(null);
+              setIsThemeMenuOpen((current) => !current);
+            }}
+          >
+            <Palette size={17} aria-hidden />
+          </button>
+
+          {isThemeMenuOpen ? (
+            <div className="theme-menu" role="listbox" aria-label="Theme">
+              {BOARD_THEMES.map((theme) => (
+                <button
+                  aria-label={`${theme.name} theme`}
+                  aria-selected={themeId === theme.id}
+                  className={`theme-option ${themeId === theme.id ? "is-selected" : ""}`}
+                  key={theme.id}
+                  role="option"
+                  style={
+                    {
+                      "--theme-bg": theme.swatches[0],
+                      "--theme-surface": theme.swatches[1],
+                      "--theme-accent": theme.swatches[2],
+                    } as CSSProperties
+                  }
+                  title={`${theme.name} theme`}
+                  type="button"
+                  onClick={() => {
+                    onChangeTheme(theme.id);
+                    setIsThemeMenuOpen(false);
+                  }}
+                >
+                  <span className="theme-swatch" aria-hidden>
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                  <span>{theme.name}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       </footer>
     </aside>
