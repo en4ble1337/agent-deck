@@ -89,8 +89,10 @@ export default function TileBoard({
     );
   }
 
+  const gridDensity = visibleSessions.length > 6 ? "many" : String(visibleSessions.length);
+
   return (
-    <div className="tile-grid">
+    <div className={`tile-grid tile-grid-count-${gridDensity}`}>
       {visibleSessions.map((session) => {
         const workspace = workspaceById.get(session.workspaceId);
         const preview = terminalPreviewText(session.outputTail);
