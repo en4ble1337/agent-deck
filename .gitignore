@@ -35,3 +35,8 @@ screenshot*.png
 preview-screenshot*.png
 release-artifacts
 result
+tauri.dev.*.conf.json
+docs/assets/generated-image*.png
+docs/assets/Copilot_*.png
+docs/assets/ChatGPT Image *.png
+docs/assets/Gemini_Generated_Image_*.png
