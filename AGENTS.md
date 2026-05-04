@@ -1,10 +1,10 @@
-# Terminal Board Agent Guide
+# Workspace Deck Agent Guide
 
 All docs must describe live state only. Do not leave past commentary in docs.
 
 ## Scope
 
-Terminal Board is the live app in this repository. The archived AgentDeck implementation lives under `archive/legacy-agent-deck/` and is reference-only.
+Workspace Deck is the live app in this repository. Its primary MVP view is Terminal Board. The archived AgentDeck implementation lives under `archive/legacy-agent-deck/` and is reference-only.
 
 Canonical product spec:
 
@@ -12,7 +12,7 @@ Canonical product spec:
 
 ## Project Snapshot
 
-Terminal Board is a lightweight Tauri desktop app for managing multiple real terminal sessions across local workspaces.
+Workspace Deck is a lightweight Tauri desktop app for managing multiple real terminal sessions across local workspaces.
 
 - Frontend: React + Vite (`src/`)
 - Backend: Tauri Rust process (`src-tauri/src/`)

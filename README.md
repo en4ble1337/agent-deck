@@ -1,8 +1,8 @@
-# Terminal Board
+# Workspace Deck
 
-Terminal Board is a lightweight, terminal-first desktop app for working across multiple local workspaces in one calm window.
+Workspace Deck is a lightweight, terminal-first desktop app for working across multiple local workspaces in one calm window.
 
-The app centers on a board of real terminal sessions. Add workspaces, start sessions from presets such as Terminal, Codex, Claude, or Custom, and jump from live output tiles into a focused interactive terminal.
+The main Terminal Board view centers on real terminal sessions. Add workspaces, start sessions from presets such as Terminal, Codex, Claude, or Custom, and jump from live output tiles into a focused interactive terminal.
 
 ## Current MVP
 

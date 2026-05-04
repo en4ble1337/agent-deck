@@ -40,5 +40,5 @@ fn main() {
             commands::sessions::session_read_transcript,
         ])
         .run(tauri::generate_context!())
-        .expect("failed to run Terminal Board");
+        .expect("failed to run Workspace Deck");
 }

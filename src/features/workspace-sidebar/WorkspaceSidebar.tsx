@@ -79,8 +79,8 @@ export default function WorkspaceSidebar({
     <aside className="workspace-sidebar">
       <div className="sidebar-title">
         <div>
-          <span className="app-mark">TB</span>
-          <strong>Terminal Board</strong>
+          <span className="app-mark">WD</span>
+          <strong>Workspace Deck</strong>
         </div>
         <button className="icon-button" type="button" onClick={onAddWorkspace} title="Add workspace">
           <FolderPlus size={18} aria-hidden />

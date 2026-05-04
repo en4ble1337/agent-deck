@@ -1,10 +1,10 @@
 [package]
-name = "terminal-board"
+name = "workspace-deck"
 version = "0.1.0"
 description = "A lightweight terminal board for local workspaces"
-authors = ["Terminal Board contributors"]
+authors = ["Workspace Deck contributors"]
 edition = "2021"
-default-run = "terminal-board"
+default-run = "workspace-deck"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
