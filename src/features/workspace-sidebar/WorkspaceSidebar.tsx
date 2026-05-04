@@ -6,6 +6,7 @@ import {
   ChevronRight,
   CirclePlus,
   FolderPlus,
+  Maximize2,
   Paintbrush,
   Palette,
   Pencil,
@@ -22,6 +23,7 @@ type Props = {
   workspaces: Workspace[];
   sessions: SessionView[];
   selectedWorkspaceId: string | null;
+  minimizedSessionIds: ReadonlySet<string>;
   onAddWorkspace: () => void;
   onArchiveSession: (sessionId: string) => void;
   onChangeColor: (workspace: Workspace, accent: string) => void;
@@ -29,6 +31,7 @@ type Props = {
   onCloseWorkspace: (workspace: Workspace) => void;
   onCreateSession: (workspaceId: string, kind: SessionKind) => void;
   onRenameWorkspace: (workspace: Workspace) => void;
+  onRestoreSession: (sessionId: string) => void;
   onSelectSession: (sessionId: string) => void;
   onSelectWorkspace: (workspaceId: string | null) => void;
   themeId: BoardThemeId;
@@ -38,6 +41,7 @@ export default function WorkspaceSidebar({
   workspaces,
   sessions,
   selectedWorkspaceId,
+  minimizedSessionIds,
   onAddWorkspace,
   onArchiveSession,
   onChangeColor,
@@ -45,6 +49,7 @@ export default function WorkspaceSidebar({
   onCloseWorkspace,
   onCreateSession,
   onRenameWorkspace,
+  onRestoreSession,
   onSelectSession,
   onSelectWorkspace,
   themeId,
@@ -199,7 +204,9 @@ export default function WorkspaceSidebar({
                     const signal = sessionSignal(session);
                     return (
                       <div
-                        className={`session-row signal-${signal}`}
+                        className={`session-row signal-${signal} ${
+                          minimizedSessionIds.has(session.id) ? "is-minimized" : ""
+                        }`}
                         key={session.id}
                         style={{ "--workspace-accent": workspace.accent } as CSSProperties}
                       >
@@ -214,17 +221,30 @@ export default function WorkspaceSidebar({
                             <small>
                               {session.kind} - {sessionSignalLabel(signal)} -{" "}
                               {formatShortTime(session.lastActiveAt)}
+                              {minimizedSessionIds.has(session.id) ? " - minimized" : ""}
                             </small>
                           </span>
                         </button>
-                        <button
-                          className="icon-button subtle"
-                          type="button"
-                          onClick={() => onArchiveSession(session.id)}
-                          title="Archive session"
-                        >
-                          <Archive size={14} aria-hidden />
-                        </button>
+                        <div className="session-row-actions">
+                          {minimizedSessionIds.has(session.id) ? (
+                            <button
+                              className="icon-button subtle"
+                              type="button"
+                              onClick={() => onRestoreSession(session.id)}
+                              title="Show on board"
+                            >
+                              <Maximize2 size={14} aria-hidden />
+                            </button>
+                          ) : null}
+                          <button
+                            className="icon-button subtle"
+                            type="button"
+                            onClick={() => onArchiveSession(session.id)}
+                            title="Archive session"
+                          >
+                            <Archive size={14} aria-hidden />
+                          </button>
+                        </div>
                       </div>
                     );
                   })}

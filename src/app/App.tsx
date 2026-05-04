@@ -33,6 +33,7 @@ import {
   workspaceList,
   workspaceUpdate,
 } from "@/services/ipc";
+import { readMinimizedSessionIds, writeMinimizedSessionIds } from "@/services/boardStorage";
 import { onSessionOutput, onSessionStatus } from "@/services/events";
 import { isTauriRuntime } from "@/services/runtime";
 import { readStoredBoardThemeId, writeStoredBoardThemeId } from "@/services/themeStorage";
@@ -46,6 +47,9 @@ export default function App() {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
   const [themeId, setThemeId] = useState<BoardThemeId>(() => readStoredBoardThemeId());
+  const [minimizedSessionIds, setMinimizedSessionIds] = useState<Set<string>>(() =>
+    readMinimizedSessionIds(),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -70,6 +74,20 @@ export default function App() {
     document.documentElement.dataset.theme = themeId;
     writeStoredBoardThemeId(themeId);
   }, [themeId]);
+
+  useEffect(() => {
+    writeMinimizedSessionIds(minimizedSessionIds);
+  }, [minimizedSessionIds]);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+    const visibleSessionIds = new Set(
+      sessions.filter((session) => !session.isArchived).map((session) => session.id),
+    );
+    setMinimizedSessionIds((current) => pruneSessionIds(current, visibleSessionIds));
+  }, [isLoading, sessions]);
 
   useEffect(() => {
     const unlisteners: Array<() => void> = [];
@@ -104,6 +122,20 @@ export default function App() {
         ? workspaces.find((workspace) => workspace.id === focusedSession.workspaceId) ?? null
         : null,
     [focusedSession, workspaces],
+  );
+  const boardSessionCount = useMemo(
+    () =>
+      countBoardSessions(sessions, selectedWorkspaceId, minimizedSessionIds, {
+        minimized: false,
+      }),
+    [minimizedSessionIds, selectedWorkspaceId, sessions],
+  );
+  const minimizedBoardSessionCount = useMemo(
+    () =>
+      countBoardSessions(sessions, selectedWorkspaceId, minimizedSessionIds, {
+        minimized: true,
+      }),
+    [minimizedSessionIds, selectedWorkspaceId, sessions],
   );
 
   const runAction = useCallback(async (action: () => Promise<void>) => {
@@ -189,6 +221,7 @@ export default function App() {
         const created = await sessionCreate({ workspaceId, kind, customCommand });
         setSessions((current) => upsertById(current, created));
         const started = await sessionStart(created.id, DEFAULT_COLS, DEFAULT_ROWS);
+        setMinimizedSessionIds((current) => removeSessionId(current, started.id));
         setSessions((current) => upsertById(current, started));
         setFocusedSessionId(started.id);
       });
@@ -231,6 +264,7 @@ export default function App() {
     (sessionId: string) => {
       runAction(async () => {
         const archived = await sessionArchive(sessionId);
+        setMinimizedSessionIds((current) => removeSessionId(current, sessionId));
         setSessions((current) => upsertById(current, archived));
         if (focusedSessionId === sessionId) {
           setFocusedSessionId(null);
@@ -247,6 +281,7 @@ export default function App() {
       }
       runAction(async () => {
         await sessionDelete(sessionId, true);
+        setMinimizedSessionIds((current) => removeSessionId(current, sessionId));
         setSessions((current) => current.filter((session) => session.id !== sessionId));
         if (focusedSessionId === sessionId) {
           setFocusedSessionId(null);
@@ -255,6 +290,24 @@ export default function App() {
     },
     [focusedSessionId, runAction],
   );
+
+  const handleMinimizeSession = useCallback((sessionId: string) => {
+    setMinimizedSessionIds((current) => addSessionId(current, sessionId));
+  }, []);
+
+  const handleRestoreSession = useCallback((sessionId: string) => {
+    setMinimizedSessionIds((current) => removeSessionId(current, sessionId));
+  }, []);
+
+  const handleRestoreVisibleSessions = useCallback(() => {
+    setMinimizedSessionIds((current) => {
+      const visibleSessionIds = sessions
+        .filter((session) => !session.isArchived)
+        .filter((session) => !selectedWorkspaceId || session.workspaceId === selectedWorkspaceId)
+        .map((session) => session.id);
+      return removeSessionIds(current, visibleSessionIds);
+    });
+  }, [selectedWorkspaceId, sessions]);
 
   if (focusedSession && focusedWorkspace) {
     return (
@@ -276,12 +329,14 @@ export default function App() {
         sessions={sessions}
         workspaces={openWorkspaces}
         selectedWorkspaceId={selectedWorkspaceId}
+        minimizedSessionIds={minimizedSessionIds}
         onAddWorkspace={handleAddWorkspace}
         onArchiveSession={handleArchiveSession}
         onChangeColor={handleChangeWorkspaceColor}
         onCloseWorkspace={handleCloseWorkspace}
         onCreateSession={handleCreateSession}
         onRenameWorkspace={handleRenameWorkspace}
+        onRestoreSession={handleRestoreSession}
         onSelectSession={setFocusedSessionId}
         onSelectWorkspace={setSelectedWorkspaceId}
         onChangeTheme={setThemeId}
@@ -295,7 +350,13 @@ export default function App() {
               <Layers3 size={14} aria-hidden />
               {selectedWorkspace ? selectedWorkspace.name : "All workspaces"}
             </p>
-            <h1>Terminal Board</h1>
+            <div className="board-title-row">
+              <h1>Terminal Board</h1>
+              <span className="board-count-pill">{boardSessionCount} on board</span>
+              {minimizedBoardSessionCount > 0 ? (
+                <span className="board-count-pill">{minimizedBoardSessionCount} minimized</span>
+              ) : null}
+            </div>
           </div>
           <div className="board-actions">
             <button className="primary-button" type="button" onClick={handleAddWorkspace}>
@@ -325,10 +386,13 @@ export default function App() {
             sessions={sessions}
             selectedWorkspaceId={selectedWorkspaceId}
             workspaces={openWorkspaces}
+            minimizedSessionIds={minimizedSessionIds}
             onArchive={handleArchiveSession}
             onCreateSession={handleCreateSession}
             onFocus={setFocusedSessionId}
+            onMinimize={handleMinimizeSession}
             onRestart={handleRestartSession}
+            onRestoreAll={handleRestoreVisibleSessions}
             onStop={handleStopSession}
             onWrite={handleWriteToSession}
           />
@@ -392,6 +456,60 @@ function upsertById<T extends { id: string }>(items: T[], item: T): T[] {
     return [item, ...items];
   }
   return items.map((candidate) => (candidate.id === item.id ? item : candidate));
+}
+
+function addSessionId(sessionIds: Set<string>, sessionId: string): Set<string> {
+  if (sessionIds.has(sessionId)) {
+    return sessionIds;
+  }
+  return new Set([...sessionIds, sessionId]);
+}
+
+function removeSessionId(sessionIds: Set<string>, sessionId: string): Set<string> {
+  if (!sessionIds.has(sessionId)) {
+    return sessionIds;
+  }
+  const next = new Set(sessionIds);
+  next.delete(sessionId);
+  return next;
+}
+
+function removeSessionIds(sessionIds: Set<string>, idsToRemove: string[]): Set<string> {
+  let changed = false;
+  const next = new Set(sessionIds);
+  for (const id of idsToRemove) {
+    changed = next.delete(id) || changed;
+  }
+  return changed ? next : sessionIds;
+}
+
+function pruneSessionIds(
+  sessionIds: Set<string>,
+  allowedSessionIds: Set<string>,
+): Set<string> {
+  const next = new Set<string>();
+  let changed = false;
+  for (const id of sessionIds) {
+    if (allowedSessionIds.has(id)) {
+      next.add(id);
+    } else {
+      changed = true;
+    }
+  }
+  return changed ? next : sessionIds;
+}
+
+function countBoardSessions(
+  sessions: SessionView[],
+  selectedWorkspaceId: string | null,
+  minimizedSessionIds: ReadonlySet<string>,
+  options: { minimized: boolean },
+): number {
+  return sessions
+    .filter((session) => !session.isArchived)
+    .filter((session) => !selectedWorkspaceId || session.workspaceId === selectedWorkspaceId)
+    .filter((session) => minimizedSessionIds.has(session.id) === options.minimized)
+    .length;
 }
 
 function errorMessage(caught: unknown): string {

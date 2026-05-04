@@ -282,10 +282,14 @@
 
 .session-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   border-left: 2px solid color-mix(in srgb, var(--workspace-accent) 60%, transparent);
   padding-left: 8px;
+}
+
+.session-row.is-minimized {
+  background: color-mix(in srgb, var(--surface-soft) 48%, transparent);
 }
 
 .session-row.signal-needs-input {
@@ -298,6 +302,12 @@
   align-items: center;
   gap: 8px;
   padding: 6px 0;
+}
+
+.session-row-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
 }
 
 .status-dot {
@@ -465,6 +475,26 @@
   color: var(--text);
   font-size: 24px;
   letter-spacing: 0;
+}
+
+.board-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.board-count-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 8px;
+  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .eyebrow {

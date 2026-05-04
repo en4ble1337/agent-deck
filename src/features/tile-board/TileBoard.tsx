@@ -1,4 +1,13 @@
-import { Archive, Maximize2, Play, RotateCcw, SendHorizontal, Square, Terminal } from "lucide-react";
+import {
+  Archive,
+  Maximize2,
+  Minimize2,
+  Play,
+  RotateCcw,
+  SendHorizontal,
+  Square,
+  Terminal,
+} from "lucide-react";
 import { useState, type CSSProperties } from "react";
 import type { SessionKind, SessionView } from "@/domain/sessions";
 import type { Workspace } from "@/domain/workspaces";
@@ -13,10 +22,13 @@ type Props = {
   sessions: SessionView[];
   selectedWorkspaceId: string | null;
   workspaces: Workspace[];
+  minimizedSessionIds: ReadonlySet<string>;
   onArchive: (sessionId: string) => void;
   onCreateSession: (workspaceId: string, kind: SessionKind) => void;
   onFocus: (sessionId: string) => void;
+  onMinimize: (sessionId: string) => void;
   onRestart: (sessionId: string) => void;
+  onRestoreAll: () => void;
   onStop: (sessionId: string) => void;
   onWrite: (sessionId: string, data: string) => Promise<void>;
 };
@@ -25,10 +37,13 @@ export default function TileBoard({
   sessions,
   selectedWorkspaceId,
   workspaces,
+  minimizedSessionIds,
   onArchive,
   onCreateSession,
   onFocus,
+  onMinimize,
   onRestart,
+  onRestoreAll,
   onStop,
   onWrite,
 }: Props) {
@@ -37,8 +52,14 @@ export default function TileBoard({
   const workspaceById = new Map(workspaces.map((workspace) => [workspace.id, workspace]));
   const visibleSessions = sessions
     .filter((session) => !session.isArchived)
+    .filter((session) => !minimizedSessionIds.has(session.id))
     .filter((session) => !selectedWorkspaceId || session.workspaceId === selectedWorkspaceId)
     .sort(compareSessions);
+  const minimizedCount = sessions
+    .filter((session) => !session.isArchived)
+    .filter((session) => minimizedSessionIds.has(session.id))
+    .filter((session) => !selectedWorkspaceId || session.workspaceId === selectedWorkspaceId)
+    .length;
   const selectedWorkspace =
     selectedWorkspaceId ? workspaceById.get(selectedWorkspaceId) ?? null : null;
 
@@ -46,8 +67,12 @@ export default function TileBoard({
     return (
       <div className="empty-state">
         <Terminal size={28} aria-hidden />
-        <h2>No sessions on the board</h2>
-        {selectedWorkspace ? (
+        <h2>{minimizedCount > 0 ? "All sessions are minimized" : "No sessions on the board"}</h2>
+        {minimizedCount > 0 ? (
+          <button className="primary-button" type="button" onClick={onRestoreAll}>
+            Restore minimized
+          </button>
+        ) : selectedWorkspace ? (
           <button
             className="primary-button"
             type="button"
@@ -100,6 +125,14 @@ export default function TileBoard({
                 )}
                 <button className="icon-button" type="button" onClick={() => onRestart(session.id)} title="Restart">
                   <RotateCcw size={15} aria-hidden />
+                </button>
+                <button
+                  className="icon-button"
+                  type="button"
+                  onClick={() => onMinimize(session.id)}
+                  title="Minimize to sidebar"
+                >
+                  <Minimize2 size={15} aria-hidden />
                 </button>
                 <button className="icon-button" type="button" onClick={() => onArchive(session.id)} title="Archive">
                   <Archive size={15} aria-hidden />
