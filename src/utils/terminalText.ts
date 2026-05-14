@@ -7,14 +7,16 @@ const MAX_RENDER_INPUT = 80_000;
 const MAX_BUFFER_LINES = 220;
 const MAX_PREVIEW_LINES = 140;
 const MAX_CODEX_PREVIEW_LINES = 28;
+const MIN_SEPARATOR_LENGTH = 12;
 const VIRTUAL_COLUMNS = 140;
+const ANSI_LOOKBEHIND = 64;
+const CODEX_OUTPUT_SETTLE_MS = 2800;
 
 const NEEDS_INPUT_PATTERNS = [
-  /\bpermission\b/i,
-  /\bapproval\b/i,
-  /\bapprove\b/i,
-  /\ballow\b/i,
-  /\bdeny\b/i,
+  /\bpermission required\b/i,
+  /\bapproval required\b/i,
+  /\brequires approval\b/i,
+  /\bwaiting for approval\b/i,
   /\bconfirm\b/i,
   /\bpassword\b/i,
   /\bauthenticate\b/i,
@@ -25,9 +27,20 @@ const NEEDS_INPUT_PATTERNS = [
   /\bcontinue\?/i,
   /\bproceed\?/i,
   /\bare you sure\b/i,
-  /\bdo you want to\b/i,
   /\[(?:y|yes)\/(?:n|no)\]/i,
   /\((?:y|yes)\/(?:n|no)\)/i,
+];
+const CODEX_APPROVAL_PATTERNS = [
+  /\bwould you like to run the following command\?/i,
+  /\breason:\s*do you want to allow\b/i,
+  /\byes,\s*proceed\s*\(y\)/i,
+  /\bdon't ask again for commands that start with\b/i,
+];
+const CODEX_APPROVAL_RESOLVED_PATTERNS = [
+  /\byou approved\b/i,
+  /\byou denied\b/i,
+  /\bcancelled\b/i,
+  /\bcanceled\b/i,
 ];
 
 export type SessionSignal = "needs-input" | "running" | "idle" | "exited" | "failed";
@@ -44,12 +57,13 @@ export type TerminalTilePreview =
     };
 
 export function terminalPreviewText(raw: string): string {
-  return cleanPreview(renderTerminalScreen(raw.slice(-MAX_RENDER_INPUT)));
+  return cleanPreview(renderTerminalScreen(renderInputTail(raw)));
 }
 
 export function terminalTilePreview(
   session: SessionView,
   signal: SessionSignal,
+  now = Date.now(),
 ): TerminalTilePreview {
   const preview = terminalPreviewText(session.outputTail);
   if (session.kind !== "codex") {
@@ -57,22 +71,32 @@ export function terminalTilePreview(
   }
 
   const codexPreview = cleanCodexPreview(preview);
+  const codexTranscriptPreview = cleanCodexTranscriptPreview(session.outputTail);
+  const codexReadablePreview = cleanCodexReadableTranscript(session.outputTail);
   if (signal === "needs-input") {
     return {
-      detail: "Approval or login is waiting.",
+      detail: "Review the terminal prompt.",
       kind: "status",
       title: "Codex needs input",
       tone: "needs-input",
     };
   }
 
-  if (isCodexWorking(session, signal, preview, codexPreview)) {
+  if (codexTranscriptPreview.length > 0) {
+    return { kind: "text", text: codexTranscriptPreview };
+  }
+
+  if (isCodexWorking(session, signal, preview, codexPreview, now)) {
     return {
       detail: "Waiting for a clean response.",
       kind: "status",
       title: "Codex is working",
       tone: "working",
     };
+  }
+
+  if (codexReadablePreview.length > 0) {
+    return { kind: "text", text: codexReadablePreview };
   }
 
   if (codexPreview.length > 0) {
@@ -91,17 +115,17 @@ export function terminalTilePreview(
   return { kind: "text", text: preview };
 }
 
-export function sessionSignal(session: SessionView): SessionSignal {
+export function sessionSignal(session: SessionView, now = Date.now()): SessionSignal {
   if (session.status === "failed") {
     return "failed";
   }
   if (!session.hasProcess || session.status === "exited" || session.status === "archived") {
     return "exited";
   }
-  if (needsInput(session.outputTail)) {
+  if (needsInput(session)) {
     return "needs-input";
   }
-  return Date.now() - session.lastActiveAt > 45_000 ? "idle" : "running";
+  return now - session.lastActiveAt > 45_000 ? "idle" : "running";
 }
 
 export function sessionSignalLabel(signal: SessionSignal): string {
@@ -154,6 +178,61 @@ function cleanCodexPreview(preview: string): string {
     .trim();
 }
 
+function cleanCodexTranscriptPreview(raw: string): string {
+  const lines = codexTranscriptLines(raw);
+  const completionIndex = findLastIndex(lines, isCodexCompletionLine);
+  if (completionIndex === -1) {
+    return "";
+  }
+
+  const beforeCompletion = lines.slice(0, completionIndex);
+  const promptIndex = findLastIndex(beforeCompletion, isCodexUserPromptLine);
+  const separatorIndex = findLastIndex(beforeCompletion, isCodexSeparatorLine);
+  const startIndex = Math.max(promptIndex, separatorIndex) + 1;
+  const readableLines = beforeCompletion
+    .slice(startIndex)
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim().length > 0)
+    .filter((line) => !isCodexNoiseLine(line));
+
+  return recentUniqueLines(readableLines, MAX_CODEX_PREVIEW_LINES).join("\n").trim();
+}
+
+function cleanCodexReadableTranscript(raw: string): string {
+  const readableLines = codexTranscriptLines(raw)
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim().length > 0)
+    .filter((line) => !isCodexNoiseLine(line));
+
+  return recentUniqueLines(readableLines, MAX_CODEX_PREVIEW_LINES).join("\n").trim();
+}
+
+function codexTranscriptLines(raw: string): string[] {
+  const transcript = stripAnsi(renderInputTail(raw))
+    .replace(/\r(?!\n)/g, "\n")
+    .replace(/\u0008+/g, "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
+  return transcript.split("\n").map((line) => normalizeCodexLine(line).trimEnd());
+}
+
+function recentUniqueLines(lines: string[], limit: number): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index];
+    const key = line.replace(/\s+/g, " ").trim();
+    if (key.length === 0 || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.unshift(line);
+    if (result.length >= limit) {
+      break;
+    }
+  }
+  return result;
+}
+
 function normalizeCodexLine(line: string): string {
   return line
     .trimEnd()
@@ -169,9 +248,14 @@ function isCodexNoiseLine(line: string): boolean {
   }
   const withoutBullet = trimmed.replace(/^[•·]\s*/, "");
   return (
+    isTerminalControlFragmentLine(trimmed) ||
+    isCodexCompletionLine(trimmed) ||
+    isCodexSeparatorLine(trimmed) ||
     isCodexBusyLine(trimmed) ||
+    isCodexStatusLine(trimmed) ||
+    isCodexInternalLine(trimmed) ||
+    isCodexUserPromptLine(trimmed) ||
     isCodexPromptLine(trimmed) ||
-    /^›\s+/.test(trimmed) ||
     /^OpenAI Codex\b/i.test(trimmed) ||
     /^model:\s+/i.test(trimmed) ||
     /^directory:\s+/i.test(trimmed) ||
@@ -192,15 +276,23 @@ function isCodexWorking(
   signal: SessionSignal,
   preview: string,
   codexPreview: string,
+  now: number,
 ): boolean {
   if (!session.hasProcess || signal !== "running") {
     return false;
   }
 
+  if (now - session.lastActiveAt < CODEX_OUTPUT_SETTLE_MS) {
+    return true;
+  }
+
   const lines = preview.split("\n").map((line) => normalizeCodexLine(line).trim());
   const lastBusyIndex = findLastIndex(lines, isCodexBusyLine);
+  const lastStatusIndex = findLastIndex(lines, isCodexStatusLine);
+  const lastInternalIndex = findLastIndex(lines, isCodexInternalLine);
   const lastPromptIndex = findLastIndex(lines, isCodexPromptLine);
-  if (lastBusyIndex === -1) {
+  const lastHiddenActivityIndex = Math.max(lastBusyIndex, lastStatusIndex, lastInternalIndex);
+  if (lastHiddenActivityIndex === -1) {
     return codexPreview.length === 0 && lastPromptIndex === -1;
   }
 
@@ -208,13 +300,50 @@ function isCodexWorking(
     lines,
     (line) => line.length > 0 && !isCodexNoiseLine(line),
   );
-  return lastBusyIndex > Math.max(lastPromptIndex, lastReadableIndex);
+  return lastHiddenActivityIndex > Math.max(lastPromptIndex, lastReadableIndex);
 }
 
 function isCodexBusyLine(line: string): boolean {
   return /^[•·]?\s*(Working|Thinking|Running|Reading|Searching|Planning|Checking|Editing|Writing|Applying|Testing|Building)\.?\s*$/i.test(
     line.trim(),
   );
+}
+
+function isCodexStatusLine(line: string): boolean {
+  const withoutBullet = line.trim().replace(/^[•·]\s*/, "");
+  return (
+    /^(Working|Thinking|Running|Reading|Searching|Planning|Checking|Editing|Writing|Applying|Testing|Building)\b/i.test(
+      withoutBullet,
+    ) &&
+    /\b(?:esc\s+to|background terminals?|\/ps\b|interrupt|running)\b/i.test(withoutBullet)
+  );
+}
+
+function isCodexCompletionLine(line: string): boolean {
+  return /^─?\s*Worked for\s+\d+/i.test(line.trim());
+}
+
+function isCodexSeparatorLine(line: string): boolean {
+  const trimmed = line.trim();
+  return (
+    trimmed.length >= MIN_SEPARATOR_LENGTH &&
+    /^[─━═\-]+$/.test(trimmed)
+  );
+}
+
+function isCodexInternalLine(line: string): boolean {
+  const withoutBullet = line.trim().replace(/^[•·]\s*/, "");
+  return /^(Called|Listed|Ran|Read|Opened|Searched|Viewed|Edited|Updated|Wrote|Applied|Patched|Checked|Tested|Built|Scanning|Inspecting)\b/i.test(
+    withoutBullet,
+  );
+}
+
+function isCodexUserPromptLine(line: string): boolean {
+  return /^›\s*/.test(line.trim());
+}
+
+function isTerminalControlFragmentLine(line: string): boolean {
+  return /^\[?\??\d{1,4}(?:;\d{1,4})*[hl]$/.test(line.trim());
 }
 
 function isCodexPromptLine(line: string): boolean {
@@ -230,9 +359,67 @@ function findLastIndex<T>(items: T[], predicate: (item: T) => boolean): number {
   return -1;
 }
 
-function needsInput(raw: string): boolean {
-  const preview = terminalPreviewText(raw).slice(-2400);
-  return NEEDS_INPUT_PATTERNS.some((pattern) => pattern.test(preview));
+function needsInput(session: SessionView): boolean {
+  const preview = terminalPreviewText(session.outputTail).slice(-2400);
+  const searchablePreview =
+    session.kind === "codex" ? withoutActiveCodexDraft(preview) : preview;
+
+  if (session.kind === "codex") {
+    const rawTail = stripAnsi(session.outputTail.slice(-6000));
+    if (hasPendingCodexApproval(searchablePreview) || hasPendingCodexApproval(rawTail)) {
+      return true;
+    }
+    return NEEDS_INPUT_PATTERNS.some((pattern) => pattern.test(searchablePreview));
+  }
+
+  if (NEEDS_INPUT_PATTERNS.some((pattern) => pattern.test(searchablePreview))) {
+    return true;
+  }
+
+  return false;
+}
+
+function hasPendingCodexApproval(text: string): boolean {
+  const approvalIndex = lastPatternIndex(text, CODEX_APPROVAL_PATTERNS);
+  if (approvalIndex === -1) {
+    return false;
+  }
+  return approvalIndex > lastPatternIndex(text, CODEX_APPROVAL_RESOLVED_PATTERNS);
+}
+
+function lastPatternIndex(text: string, patterns: RegExp[]): number {
+  let lastIndex = -1;
+  for (const pattern of patterns) {
+    const globalPattern = new RegExp(pattern.source, `${pattern.flags.replace("g", "")}g`);
+    let match: RegExpExecArray | null;
+    while ((match = globalPattern.exec(text)) !== null) {
+      lastIndex = Math.max(lastIndex, match.index);
+      if (match[0].length === 0) {
+        globalPattern.lastIndex += 1;
+      }
+    }
+  }
+  return lastIndex;
+}
+
+function withoutActiveCodexDraft(preview: string): string {
+  const lines = preview.split("\n");
+  const promptIndex = findLastIndex(lines, isCodexPromptLine);
+  if (promptIndex === -1) {
+    return preview;
+  }
+
+  const draftStart = findLastIndex(
+    lines.slice(0, promptIndex),
+    (line) => isCodexUserPromptLine(normalizeCodexLine(line)),
+  );
+  if (draftStart === -1) {
+    return preview;
+  }
+
+  return lines
+    .filter((_, index) => index < draftStart || index > promptIndex)
+    .join("\n");
 }
 
 type VirtualTerminal = {
@@ -242,6 +429,76 @@ type VirtualTerminal = {
   savedCol: number;
   savedRow: number;
 };
+
+function renderInputTail(raw: string): string {
+  if (raw.length <= MAX_RENDER_INPUT) {
+    return raw;
+  }
+  return raw.slice(ansiSafeTailStart(raw));
+}
+
+function ansiSafeTailStart(raw: string): number {
+  const desiredStart = Math.max(0, raw.length - MAX_RENDER_INPUT);
+  const lookbehindStart = Math.max(0, desiredStart - ANSI_LOOKBEHIND);
+
+  for (let index = desiredStart - 1; index >= lookbehindStart; index -= 1) {
+    const char = raw[index];
+    if (char !== "\x1b" && char !== "\x9b") {
+      continue;
+    }
+    const sequenceEnd = ansiSequenceEnd(raw, index);
+    if (sequenceEnd >= desiredStart || sequenceEnd === raw.length - 1) {
+      return index;
+    }
+    break;
+  }
+
+  return desiredStart;
+}
+
+function ansiSequenceEnd(raw: string, index: number): number {
+  if (raw[index] === "\x9b") {
+    return csiEnd(raw, index + 1);
+  }
+
+  const next = raw[index + 1];
+  if (!next) {
+    return index;
+  }
+  if (next === "[") {
+    return csiEnd(raw, index + 2);
+  }
+  if (next === "]" || next === "P" || next === "_" || next === "^" || next === "X") {
+    return stringControlEnd(raw, index + 2);
+  }
+  return index + 1;
+}
+
+function csiEnd(raw: string, index: number): number {
+  for (let cursor = index; cursor < raw.length; cursor += 1) {
+    const code = raw.charCodeAt(cursor);
+    if (isCsiFinal(code)) {
+      return cursor;
+    }
+  }
+  return raw.length - 1;
+}
+
+function isCsiFinal(code: number): boolean {
+  return code >= 0x40 && code <= 0x7e;
+}
+
+function stringControlEnd(raw: string, index: number): number {
+  const bell = raw.indexOf("\x07", index);
+  const st = raw.indexOf("\x1b\\", index);
+  if (bell === -1 && st === -1) {
+    return raw.length - 1;
+  }
+  if (bell !== -1 && (st === -1 || bell < st)) {
+    return bell;
+  }
+  return st + 1;
+}
 
 function renderTerminalScreen(raw: string): string {
   const terminal: VirtualTerminal = {
@@ -279,6 +536,9 @@ function consumeEscape(raw: string, index: number, terminal: VirtualTerminal): n
   if (next === "]") {
     return consumeOsc(raw, index + 2);
   }
+  if (next === "P" || next === "_" || next === "^" || next === "X") {
+    return stringControlEnd(raw, index + 2);
+  }
   switch (next) {
     case "7":
       terminal.savedRow = terminal.row;
@@ -302,31 +562,30 @@ function consumeEscape(raw: string, index: number, terminal: VirtualTerminal): n
     case "M":
       terminal.row = Math.max(0, terminal.row - 1);
       break;
+    case "(":
+    case ")":
+    case "*":
+    case "+":
+    case "-":
+    case ".":
+    case "/":
+    case "#":
+    case "%":
+      return Math.min(raw.length - 1, index + 2);
   }
   return index + 1;
 }
 
 function consumeOsc(raw: string, index: number): number {
-  const bell = raw.indexOf("\x07", index);
-  const st = raw.indexOf("\x1b\\", index);
-  if (bell === -1 && st === -1) {
-    return raw.length - 1;
-  }
-  if (bell !== -1 && (st === -1 || bell < st)) {
-    return bell;
-  }
-  return st + 1;
+  return stringControlEnd(raw, index);
 }
 
 function consumeCsi(raw: string, index: number, terminal: VirtualTerminal): number {
-  for (let cursor = index; cursor < raw.length; cursor += 1) {
-    const code = raw.charCodeAt(cursor);
-    if (code >= 0x40 && code <= 0x7e) {
-      applyCsi(terminal, raw.slice(index, cursor), raw[cursor]);
-      return cursor;
-    }
+  const cursor = csiEnd(raw, index);
+  if (cursor < raw.length && isCsiFinal(raw.charCodeAt(cursor))) {
+    applyCsi(terminal, raw.slice(index, cursor), raw[cursor]);
   }
-  return raw.length - 1;
+  return cursor;
 }
 
 function applyCsi(terminal: VirtualTerminal, body: string, command: string) {
@@ -497,6 +756,9 @@ function cleanPreview(text: string): string {
     .split("\n")
     .map((line) => line.trimEnd())
     .slice(-MAX_PREVIEW_LINES);
+  while (lines.length > 0 && isTerminalControlFragmentLine(lines[0])) {
+    lines.shift();
+  }
   return collapseBlankLines(lines).join("\n").trimStart();
 }
 

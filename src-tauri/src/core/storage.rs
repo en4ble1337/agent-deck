@@ -218,11 +218,11 @@ impl Storage {
                 workspace_id.is_none_or(|id| session.workspace_id == id)
                     && (include_archived || !session.is_archived)
             })
-            .map(|session| SessionView {
-                session: session.clone(),
-                output_tail: self
-                    .read_transcript_tail(&session.transcript_path, TRANSCRIPT_TAIL_BYTES),
-                has_process: live_session_ids.iter().any(|id| id == &session.id),
+            .map(|session| {
+                self.session_view_from_session(
+                    session,
+                    live_session_ids.iter().any(|id| id == &session.id),
+                )
             })
             .collect();
         sessions.sort_by(|a, b| b.session.last_active_at.cmp(&a.session.last_active_at));
@@ -294,11 +294,29 @@ impl Storage {
 
     pub fn session_view(&self, session_id: &str, has_process: bool) -> Result<SessionView, String> {
         let session = self.get_session(session_id)?;
-        Ok(SessionView {
+        Ok(self.session_view_from_session(&session, has_process))
+    }
+
+    fn session_view_from_session(
+        &self,
+        session: &TerminalSession,
+        has_process: bool,
+    ) -> SessionView {
+        let mut session = session.clone();
+        if !has_process
+            && matches!(
+                session.status,
+                SessionStatus::Starting | SessionStatus::Running | SessionStatus::Waiting
+            )
+        {
+            session.status = SessionStatus::Exited;
+        }
+
+        SessionView {
             output_tail: self.read_transcript_tail(&session.transcript_path, TRANSCRIPT_TAIL_BYTES),
             session,
             has_process,
-        })
+        }
     }
 
     pub fn save_session_attachment(

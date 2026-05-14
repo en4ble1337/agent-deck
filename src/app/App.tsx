@@ -3,11 +3,13 @@ import {
   useEffect,
   useMemo,
   useState,
+  type CSSProperties,
   type Dispatch,
   type SetStateAction,
 } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Activity, FolderPlus, Layers3 } from "lucide-react";
+import { Activity, Archive, BarChart3, Check, Filter, FolderPlus, Layers3, ListPlus } from "lucide-react";
+import type { CommandPreset } from "@/domain/presets";
 import type {
   SessionKind,
   SessionOutputEvent,
@@ -16,10 +18,15 @@ import type {
 } from "@/domain/sessions";
 import type { BoardThemeId } from "@/domain/themes";
 import type { Workspace } from "@/domain/workspaces";
+import workspaceDeckLogo from "@/assets/workspace-deck-logo.png";
+import BoardUtilityPanel, {
+  type BoardUtilityPanelId,
+} from "@/features/board-utility/BoardUtilityPanel";
 import FocusedSessionView from "@/features/focused-session/FocusedSessionView";
 import TileBoard from "@/features/tile-board/TileBoard";
 import WorkspaceSidebar from "@/features/workspace-sidebar/WorkspaceSidebar";
 import {
+  presetList,
   sessionArchive,
   sessionCreate,
   sessionDelete,
@@ -27,6 +34,7 @@ import {
   sessionRestart,
   sessionStart,
   sessionStop,
+  sessionUnarchive,
   sessionWrite,
   workspaceAdd,
   workspaceClose,
@@ -45,9 +53,12 @@ const MANY_SESSION_LIMIT = 12;
 export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [sessions, setSessions] = useState<SessionView[]>([]);
+  const [presets, setPresets] = useState<CommandPreset[]>([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
   const [themeId, setThemeId] = useState<BoardThemeId>(() => readStoredBoardThemeId());
+  const [isWorkspaceFilterOpen, setIsWorkspaceFilterOpen] = useState(false);
+  const [activeUtilityPanel, setActiveUtilityPanel] = useState<BoardUtilityPanelId | null>(null);
   const [minimizedSessionIds, setMinimizedSessionIds] = useState<Set<string>>(() =>
     readMinimizedSessionIds(),
   );
@@ -55,12 +66,14 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [nextWorkspaces, nextSessions] = await Promise.all([
+    const [nextWorkspaces, nextSessions, nextPresets] = await Promise.all([
       workspaceListSafe(),
-      sessionList(undefined, false),
+      sessionList(undefined, true),
+      presetList(),
     ]);
     setWorkspaces(nextWorkspaces);
     setSessions(nextSessions);
+    setPresets(nextPresets);
     setIsLoading(false);
   }, []);
 
@@ -109,6 +122,14 @@ export default function App() {
     () => workspaces.filter((workspace) => workspace.isOpen),
     [workspaces],
   );
+  const openWorkspaceIds = useMemo(
+    () => new Set(openWorkspaces.map((workspace) => workspace.id)),
+    [openWorkspaces],
+  );
+  const openWorkspaceSessions = useMemo(
+    () => sessions.filter((session) => openWorkspaceIds.has(session.workspaceId)),
+    [openWorkspaceIds, sessions],
+  );
   const selectedWorkspace = useMemo(
     () => openWorkspaces.find((workspace) => workspace.id === selectedWorkspaceId) ?? null,
     [openWorkspaces, selectedWorkspaceId],
@@ -126,17 +147,17 @@ export default function App() {
   );
   const boardSessionCount = useMemo(
     () =>
-      countBoardSessions(sessions, selectedWorkspaceId, minimizedSessionIds, {
+      countBoardSessions(openWorkspaceSessions, selectedWorkspaceId, minimizedSessionIds, {
         minimized: false,
       }),
-    [minimizedSessionIds, selectedWorkspaceId, sessions],
+    [minimizedSessionIds, openWorkspaceSessions, selectedWorkspaceId],
   );
   const minimizedBoardSessionCount = useMemo(
     () =>
-      countBoardSessions(sessions, selectedWorkspaceId, minimizedSessionIds, {
+      countBoardSessions(openWorkspaceSessions, selectedWorkspaceId, minimizedSessionIds, {
         minimized: true,
       }),
-    [minimizedSessionIds, selectedWorkspaceId, sessions],
+    [minimizedSessionIds, openWorkspaceSessions, selectedWorkspaceId],
   );
 
   const runAction = useCallback(async (action: () => Promise<void>) => {
@@ -149,6 +170,7 @@ export default function App() {
   }, []);
 
   const handleAddWorkspace = useCallback(() => {
+    setIsWorkspaceFilterOpen(false);
     runAction(async () => {
       const selected = isTauriRuntime()
         ? await open({
@@ -165,6 +187,16 @@ export default function App() {
       setSelectedWorkspaceId(workspace.id);
     });
   }, [runAction]);
+
+  const handleSelectWorkspaceFilter = useCallback((workspaceId: string | null) => {
+    setSelectedWorkspaceId(workspaceId);
+    setIsWorkspaceFilterOpen(false);
+  }, []);
+
+  const handleToggleUtilityPanel = useCallback((panel: BoardUtilityPanelId) => {
+    setIsWorkspaceFilterOpen(false);
+    setActiveUtilityPanel((current) => (current === panel ? null : panel));
+  }, []);
 
   const handleRenameWorkspace = useCallback(
     (workspace: Workspace) => {
@@ -299,6 +331,16 @@ export default function App() {
     [focusedSessionId, runAction],
   );
 
+  const handleUnarchiveSession = useCallback(
+    (sessionId: string) => {
+      runAction(async () => {
+        const restored = await sessionUnarchive(sessionId);
+        setSessions((current) => upsertById(current, restored));
+      });
+    },
+    [runAction],
+  );
+
   const handleDeleteSession = useCallback(
     (sessionId: string) => {
       if (!window.confirm("Delete this session and transcript?")) {
@@ -326,13 +368,13 @@ export default function App() {
 
   const handleRestoreVisibleSessions = useCallback(() => {
     setMinimizedSessionIds((current) => {
-      const visibleSessionIds = sessions
+      const visibleSessionIds = openWorkspaceSessions
         .filter((session) => !session.isArchived)
         .filter((session) => !selectedWorkspaceId || session.workspaceId === selectedWorkspaceId)
         .map((session) => session.id);
       return removeSessionIds(current, visibleSessionIds);
     });
-  }, [selectedWorkspaceId, sessions]);
+  }, [openWorkspaceSessions, selectedWorkspaceId]);
 
   if (focusedSession && focusedWorkspace) {
     return (
@@ -351,7 +393,7 @@ export default function App() {
   return (
     <main className="app-shell">
       <WorkspaceSidebar
-        sessions={sessions}
+        sessions={openWorkspaceSessions}
         workspaces={openWorkspaces}
         selectedWorkspaceId={selectedWorkspaceId}
         minimizedSessionIds={minimizedSessionIds}
@@ -371,20 +413,107 @@ export default function App() {
 
       <section className="board-surface">
         <header className="board-header">
-          <div>
-            <p className="eyebrow">
-              <Layers3 size={14} aria-hidden />
-              {selectedWorkspace ? selectedWorkspace.name : "All workspaces"}
-            </p>
-            <div className="board-title-row">
-              <h1>Terminal Board</h1>
-              <span className="board-count-pill">{boardSessionCount} on board</span>
-              {minimizedBoardSessionCount > 0 ? (
-                <span className="board-count-pill">{minimizedBoardSessionCount} minimized</span>
-              ) : null}
+          <div className="board-heading">
+            <img className="board-logo" src={workspaceDeckLogo} alt="" aria-hidden />
+            <div className="board-heading-copy">
+              <p className="eyebrow">
+                <Layers3 size={14} aria-hidden />
+                {selectedWorkspace ? selectedWorkspace.name : "All workspaces"}
+              </p>
+              <div className="board-title-row">
+                <h1>Board</h1>
+                <span className="board-count-pill">{boardSessionCount} on board</span>
+                {minimizedBoardSessionCount > 0 ? (
+                  <span className="board-count-pill">{minimizedBoardSessionCount} minimized</span>
+                ) : null}
+              </div>
             </div>
           </div>
           <div className="board-actions">
+            <button
+              className={`secondary-button utility-trigger ${
+                activeUtilityPanel === "activity" ? "is-active" : ""
+              }`}
+              type="button"
+              onClick={() => handleToggleUtilityPanel("activity")}
+            >
+              <BarChart3 size={16} aria-hidden />
+              Activity
+            </button>
+            <button
+              className={`secondary-button utility-trigger ${
+                activeUtilityPanel === "presets" ? "is-active" : ""
+              }`}
+              type="button"
+              onClick={() => handleToggleUtilityPanel("presets")}
+            >
+              <ListPlus size={16} aria-hidden />
+              Presets
+            </button>
+            <button
+              className={`secondary-button utility-trigger ${
+                activeUtilityPanel === "archive" ? "is-active" : ""
+              }`}
+              type="button"
+              onClick={() => handleToggleUtilityPanel("archive")}
+            >
+              <Archive size={16} aria-hidden />
+              Archive
+            </button>
+            <div className="workspace-filter-control">
+              <button
+                aria-expanded={isWorkspaceFilterOpen}
+                className={`secondary-button workspace-filter-trigger ${
+                  isWorkspaceFilterOpen ? "is-active" : ""
+                }`}
+                type="button"
+                onClick={() => setIsWorkspaceFilterOpen((current) => !current)}
+              >
+                <Filter size={16} aria-hidden />
+                Filter
+              </button>
+              {isWorkspaceFilterOpen ? (
+                <div className="workspace-filter-menu" role="listbox" aria-label="Workspace filter">
+                  <button
+                    aria-selected={selectedWorkspaceId === null}
+                    className="workspace-filter-option"
+                    role="option"
+                    type="button"
+                    onClick={() => handleSelectWorkspaceFilter(null)}
+                  >
+                    <span className="workspace-filter-all-dot" aria-hidden />
+                    <span>
+                      <strong>All workspaces</strong>
+                      <small>{countBoardSessions(openWorkspaceSessions, null, minimizedSessionIds, { minimized: false })} on board</small>
+                    </span>
+                    {selectedWorkspaceId === null ? <Check size={15} aria-hidden /> : null}
+                  </button>
+                  {openWorkspaces.map((workspace) => {
+                    const count = countBoardSessions(openWorkspaceSessions, workspace.id, minimizedSessionIds, {
+                      minimized: false,
+                    });
+                    return (
+                      <button
+                        aria-selected={selectedWorkspaceId === workspace.id}
+                        className="workspace-filter-option"
+                        key={workspace.id}
+                        role="option"
+                        style={{ "--workspace-accent": workspace.accent } as CSSProperties}
+                        type="button"
+                        onClick={() => handleSelectWorkspaceFilter(workspace.id)}
+                      >
+                        <span className="accent-dot" aria-hidden />
+                        <span>
+                          <strong>{workspace.name}</strong>
+                          <small>{count} on board</small>
+                        </span>
+                        {selectedWorkspaceId === workspace.id ? <Check size={15} aria-hidden /> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
             <button className="primary-button" type="button" onClick={handleAddWorkspace}>
               <FolderPlus size={18} aria-hidden />
               Workspace
@@ -393,6 +522,21 @@ export default function App() {
         </header>
 
         {error ? <div className="error-strip">{error}</div> : null}
+
+        {activeUtilityPanel ? (
+          <BoardUtilityPanel
+            panel={activeUtilityPanel}
+            presets={presets}
+            selectedWorkspaceId={selectedWorkspaceId}
+            sessions={openWorkspaceSessions}
+            workspaces={openWorkspaces}
+            onClose={() => setActiveUtilityPanel(null)}
+            onCreateSession={handleCreateSession}
+            onDeleteSession={handleDeleteSession}
+            onFocusSession={setFocusedSessionId}
+            onRestoreSession={handleUnarchiveSession}
+          />
+        ) : null}
 
         {isLoading ? (
           <div className="empty-state">
@@ -409,7 +553,7 @@ export default function App() {
           </div>
         ) : (
           <TileBoard
-            sessions={sessions}
+            sessions={openWorkspaceSessions}
             selectedWorkspaceId={selectedWorkspaceId}
             workspaces={openWorkspaces}
             minimizedSessionIds={minimizedSessionIds}

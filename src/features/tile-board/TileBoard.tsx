@@ -12,9 +12,12 @@ import {
   Terminal,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type CSSProperties } from "react";
+import { FitAddon } from "@xterm/addon-fit";
+import { SerializeAddon } from "@xterm/addon-serialize";
+import { Terminal as XtermTerminal } from "@xterm/xterm";
 import type { SessionAttachment, SessionKind, SessionView } from "@/domain/sessions";
 import type { Workspace } from "@/domain/workspaces";
-import { sessionSaveAttachment } from "@/services/ipc";
+import { sessionReadTranscript, sessionResize, sessionSaveAttachment } from "@/services/ipc";
 import { isTauriRuntime } from "@/services/runtime";
 import {
   sessionSignal,
@@ -22,7 +25,7 @@ import {
   terminalTilePreview,
   type TerminalTilePreview,
 } from "@/utils/terminalText";
-import { codexSubmitData } from "@/utils/codexTerminalKeys";
+import { codexQuickPasteData, codexSubmitData } from "@/utils/codexTerminalKeys";
 import { formatShortTime } from "@/utils/time";
 
 type Props = {
@@ -40,6 +43,19 @@ type Props = {
   onStop: (sessionId: string) => void;
   onWrite: (sessionId: string, data: string) => Promise<void>;
 };
+
+const CODEX_QUICK_SUBMIT_DELAY_MS = 160;
+const TILE_TRANSCRIPT_REPLAY_LIMIT = 200_000;
+const TILE_SNAPSHOT_SCROLLBACK = 200;
+
+type TileTerminalSnapshot = {
+  cols: number;
+  data: string;
+  rows: number;
+  startedAt: number | null;
+};
+
+const tileTerminalSnapshots = new Map<string, TileTerminalSnapshot>();
 
 export default function TileBoard({
   sessions,
@@ -64,12 +80,13 @@ export default function TileBoard({
     .filter((session) => !session.isArchived)
     .filter((session) => !minimizedSessionIds.has(session.id))
     .filter((session) => !selectedWorkspaceId || session.workspaceId === selectedWorkspaceId)
-    .sort(compareSessions);
+    .sort(compareBoardSessions);
   const minimizedCount = sessions
     .filter((session) => !session.isArchived)
     .filter((session) => minimizedSessionIds.has(session.id))
     .filter((session) => !selectedWorkspaceId || session.workspaceId === selectedWorkspaceId)
     .length;
+  const now = useBoardClock(visibleSessions.some((session) => session.hasProcess));
   const selectedWorkspace =
     selectedWorkspaceId ? workspaceById.get(selectedWorkspaceId) ?? null : null;
 
@@ -103,8 +120,8 @@ export default function TileBoard({
     <div className={`tile-grid tile-grid-count-${gridDensity}`}>
       {visibleSessions.map((session) => {
         const workspace = workspaceById.get(session.workspaceId);
-        const signal = sessionSignal(session);
-        const preview = terminalTilePreview(session, signal);
+        const signal = sessionSignal(session, now);
+        const preview = terminalTilePreview(session, signal, now);
         const signalLabel = sessionSignalLabel(signal);
         const draft = drafts[session.id] ?? "";
         const pasteNotice = pasteNotices[session.id] ?? null;
@@ -157,9 +174,24 @@ export default function TileBoard({
               <span className={`signal-pill signal-${signal}`}>{signalLabel}</span>
               <span>{formatShortTime(session.lastActiveAt)}</span>
             </div>
-            <button className="terminal-tail" type="button" onClick={() => onFocus(session.id)}>
-              <TerminalPreviewContent preview={preview} />
-            </button>
+            <div
+              className="terminal-tail"
+              onClick={() => onFocus(session.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onFocus(session.id);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <TerminalPreviewContent
+                preview={preview}
+                session={session}
+                workspaceAccent={workspace?.accent ?? "#48d597"}
+              />
+            </div>
             <form
               className="quick-input-form"
               onSubmit={(event) => {
@@ -219,7 +251,32 @@ export default function TileBoard({
   );
 }
 
-function TerminalPreviewContent({ preview }: { preview: TerminalTilePreview }) {
+function useBoardClock(shouldTick: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!shouldTick) {
+      return;
+    }
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [shouldTick]);
+
+  return now;
+}
+
+function TerminalPreviewContent({
+  preview,
+  session,
+  workspaceAccent,
+}: {
+  preview: TerminalTilePreview;
+  session: SessionView;
+  workspaceAccent: string;
+}) {
+  if (session.hasProcess || session.outputTail.length > 0) {
+    return <TileTerminalPreview session={session} workspaceAccent={workspaceAccent} />;
+  }
   if (preview.kind === "status") {
     const Icon =
       preview.tone === "needs-input"
@@ -255,6 +312,270 @@ function TerminalPreviewText({ text }: { text: string }) {
   }, [text]);
 
   return <pre ref={previewRef}>{text}</pre>;
+}
+
+function TileTerminalPreview({
+  session,
+  workspaceAccent,
+}: {
+  session: SessionView;
+  workspaceAccent: string;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const terminalRef = useRef<XtermTerminal | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
+  const writtenRef = useRef("");
+  const hydratedRef = useRef(false);
+  const latestOutputRef = useRef(session.outputTail);
+  const latestHasProcessRef = useRef(session.hasProcess);
+  const latestStartedAtRef = useRef(session.startedAt);
+  const lastSyncedSizeRef = useRef("");
+
+  useEffect(() => {
+    latestOutputRef.current = session.outputTail;
+  }, [session.outputTail]);
+
+  useEffect(() => {
+    latestHasProcessRef.current = session.hasProcess;
+    if (!session.hasProcess) {
+      lastSyncedSizeRef.current = "";
+    }
+  }, [session.hasProcess]);
+
+  useEffect(() => {
+    latestStartedAtRef.current = session.startedAt;
+    lastSyncedSizeRef.current = "";
+  }, [session.startedAt]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const terminal = new XtermTerminal({
+      allowProposedApi: false,
+      convertEol: true,
+      cursorBlink: false,
+      disableStdin: true,
+      fontFamily: "Cascadia Mono, JetBrains Mono, Consolas, monospace",
+      fontSize: 12,
+      lineHeight: 1.22,
+      scrollback: 4_000,
+      theme: terminalTheme(workspaceAccent),
+    });
+    const fitAddon = new FitAddon();
+    const serializeAddon = new SerializeAddon();
+    terminal.loadAddon(fitAddon);
+    terminal.loadAddon(serializeAddon);
+    terminal.open(container);
+    terminalRef.current = terminal;
+    fitAddonRef.current = fitAddon;
+    let isDisposed = false;
+    let isRestoringSnapshot = false;
+
+    const resize = () => {
+      if (isRestoringSnapshot) {
+        return;
+      }
+      fitAddon.fit();
+      terminal.scrollToBottom();
+      syncTilePtySize(session.id, terminal, latestHasProcessRef, lastSyncedSizeRef);
+    };
+    const snapshot = compatibleSnapshot(session);
+    if (snapshot) {
+      isRestoringSnapshot = true;
+      terminal.resize(snapshot.cols, snapshot.rows);
+      terminal.write(snapshot.data, () => {
+        if (isDisposed || terminalRef.current !== terminal) {
+          return;
+        }
+        terminal.scrollToBottom();
+        isRestoringSnapshot = false;
+        resize();
+      });
+      writtenRef.current = latestOutputRef.current;
+      hydratedRef.current = true;
+    } else {
+      writtenRef.current = "";
+      hydratedRef.current = false;
+    }
+
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(container);
+    if (!snapshot) {
+      window.setTimeout(resize, 0);
+    }
+
+    if (!snapshot) {
+      void sessionReadTranscript(session.id, TILE_TRANSCRIPT_REPLAY_LIMIT)
+        .then((transcript) => {
+          if (isDisposed || terminalRef.current !== terminal) {
+            return;
+          }
+          const replay = transcript || latestOutputRef.current;
+          if (replay.length > 0) {
+            terminal.reset();
+            writeAndFollowTile(terminal, replay);
+            writtenRef.current = replay;
+          }
+          hydratedRef.current = true;
+
+          const latest = latestOutputRef.current;
+          const delta = terminalOutputDelta(writtenRef.current, latest);
+          if (delta !== null && delta.length > 0) {
+            writeAndFollowTile(terminal, delta);
+            writtenRef.current = latest;
+          }
+        })
+        .catch(() => {
+          if (isDisposed || terminalRef.current !== terminal) {
+            return;
+          }
+          const fallback = latestOutputRef.current;
+          if (fallback.length > 0) {
+            terminal.reset();
+            writeAndFollowTile(terminal, fallback);
+            writtenRef.current = fallback;
+          }
+          hydratedRef.current = true;
+        });
+    }
+
+    return () => {
+      isDisposed = true;
+      rememberTileSnapshot(session.id, latestStartedAtRef.current, terminal, serializeAddon);
+      resizeObserver.disconnect();
+      terminal.dispose();
+      terminalRef.current = null;
+      fitAddonRef.current = null;
+      writtenRef.current = "";
+      hydratedRef.current = false;
+    };
+  }, [session.id, workspaceAccent]);
+
+  useEffect(() => {
+    const terminal = terminalRef.current;
+    if (!terminal) {
+      return;
+    }
+
+    const previous = writtenRef.current;
+    const next = session.outputTail;
+    if (!hydratedRef.current) {
+      return;
+    }
+    if (next.length === 0 || next === previous) {
+      return;
+    }
+
+    const delta = terminalOutputDelta(previous, next);
+    if (delta !== null) {
+      writeAndFollowTile(terminal, delta);
+    } else {
+      terminal.reset();
+      writeAndFollowTile(terminal, next);
+    }
+    writtenRef.current = next;
+  }, [session.outputTail]);
+
+  return <div className="tile-terminal-frame" ref={containerRef} />;
+}
+
+function compatibleSnapshot(session: SessionView): TileTerminalSnapshot | null {
+  const snapshot = tileTerminalSnapshots.get(session.id);
+  if (!snapshot || snapshot.startedAt !== session.startedAt) {
+    return null;
+  }
+  return snapshot;
+}
+
+function rememberTileSnapshot(
+  sessionId: string,
+  startedAt: number | null,
+  terminal: XtermTerminal,
+  serializeAddon: SerializeAddon,
+) {
+  try {
+    const data = serializeAddon.serialize({ scrollback: TILE_SNAPSHOT_SCROLLBACK });
+    if (data.trim().length === 0) {
+      tileTerminalSnapshots.delete(sessionId);
+      return;
+    }
+    tileTerminalSnapshots.set(sessionId, {
+      cols: terminal.cols,
+      data,
+      rows: terminal.rows,
+      startedAt,
+    });
+  } catch {
+    tileTerminalSnapshots.delete(sessionId);
+  }
+}
+
+function syncTilePtySize(
+  sessionId: string,
+  terminal: XtermTerminal,
+  latestHasProcessRef: { current: boolean },
+  lastSyncedSizeRef: { current: string },
+) {
+  if (!latestHasProcessRef.current || terminal.cols <= 0 || terminal.rows <= 0) {
+    return;
+  }
+  const sizeKey = `${terminal.cols}x${terminal.rows}`;
+  if (lastSyncedSizeRef.current === sizeKey) {
+    return;
+  }
+  lastSyncedSizeRef.current = sizeKey;
+  void sessionResize(sessionId, terminal.cols, terminal.rows).catch(() => {
+    lastSyncedSizeRef.current = "";
+  });
+}
+
+function writeAndFollowTile(terminal: XtermTerminal, data: string) {
+  terminal.write(data, () => {
+    terminal.scrollToBottom();
+  });
+}
+
+function terminalOutputDelta(previous: string, next: string): string | null {
+  if (previous.length === 0) {
+    return next;
+  }
+  if (next.startsWith(previous)) {
+    return next.slice(previous.length);
+  }
+
+  const maxOverlap = Math.min(previous.length, next.length);
+  for (let length = maxOverlap; length > 0; length -= 1) {
+    if (previous.slice(previous.length - length) === next.slice(0, length)) {
+      return next.slice(length);
+    }
+  }
+
+  return null;
+}
+
+function terminalTheme(workspaceAccent: string) {
+  return {
+    background: cssVar("--terminal-bg", "#080b0e"),
+    foreground: cssVar("--terminal-text", "#d9f0e3"),
+    cursor: workspaceAccent,
+    selectionBackground: cssVar("--terminal-selection", "#29433a"),
+    black: cssVar("--terminal-input-bg", "#0b0f12"),
+    blue: cssVar("--info", "#7aa7ff"),
+    cyan: cssVar("--focus", "#55c7d7"),
+    green: cssVar("--good", "#48d597"),
+    magenta: "#d991c2",
+    red: cssVar("--danger", "#f07178"),
+    white: cssVar("--text", "#e8eee9"),
+    yellow: cssVar("--warning", "#f3b74f"),
+  };
+}
+
+function cssVar(name: string, fallback: string): string {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
 }
 
 function handleQuickInputPaste(
@@ -413,16 +734,12 @@ async function sendQuickLine(
   onWrite: (sessionId: string, data: string) => Promise<void>,
 ) {
   if (session.kind === "codex") {
-    await onWrite(session.id, bracketedPaste(text));
-    await sleep(80);
+    await onWrite(session.id, codexQuickPasteData(text));
+    await sleep(CODEX_QUICK_SUBMIT_DELAY_MS);
     await onWrite(session.id, codexSubmitData());
     return;
   }
   await onWrite(session.id, `${text}\r`);
-}
-
-function bracketedPaste(text: string): string {
-  return `\x1b[200~${text.replaceAll("\x1b", "")}\x1b[201~`;
 }
 
 function quickInputPlaceholder(kind: SessionKind): string {
@@ -441,14 +758,21 @@ function errorMessage(caught: unknown): string {
   return caught instanceof Error ? caught.message : String(caught);
 }
 
-function compareSessions(left: SessionView, right: SessionView): number {
-  const liveDelta = Number(right.hasProcess) - Number(left.hasProcess);
-  if (liveDelta !== 0) {
-    return liveDelta;
-  }
+function compareBoardSessions(left: SessionView, right: SessionView): number {
   const pinnedDelta = Number(right.isPinned) - Number(left.isPinned);
   if (pinnedDelta !== 0) {
     return pinnedDelta;
   }
-  return right.lastActiveAt - left.lastActiveAt;
+
+  const tileDelta = left.tileIndex - right.tileIndex;
+  if (tileDelta !== 0) {
+    return tileDelta;
+  }
+
+  const createdDelta = left.createdAt - right.createdAt;
+  if (createdDelta !== 0) {
+    return createdDelta;
+  }
+
+  return left.id.localeCompare(right.id);
 }

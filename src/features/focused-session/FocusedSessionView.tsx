@@ -10,7 +10,7 @@ import {
   sessionResize,
   sessionWrite,
 } from "@/services/ipc";
-import { codexDataForKeyEvent, isCodexEnterEvent } from "@/utils/codexTerminalKeys";
+import { isCodexShiftEnter, codexNewlineData } from "@/utils/codexTerminalKeys";
 import { compactPath } from "@/utils/time";
 
 type Props = {
@@ -70,16 +70,13 @@ export default function FocusedSessionView({
     terminalRef.current = terminal;
 
     terminal.attachCustomKeyEventHandler((event) => {
-      if (!isCodexEnterEvent(session.kind, event)) {
+      if (!isCodexShiftEnter(session.kind, event)) {
         return true;
       }
-      const data = codexDataForKeyEvent(event);
-
+      // Shift+Enter in Codex sends a literal newline instead of carriage return.
       event.preventDefault();
       event.stopPropagation();
-      if (data !== null) {
-        void sessionWrite(session.id, data);
-      }
+      void sessionWrite(session.id, codexNewlineData());
       return false;
     });
 
