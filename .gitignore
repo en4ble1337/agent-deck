@@ -1,20 +1,25 @@
+# Dependencies and build output
+node_modules
+dist
+dist-ssr
+src-tauri/gen
+src-tauri/target
+
 # Logs
 logs
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Local environment
 *.local
-src-tauri/tauri.ios.local.conf.json
-.testflight.local.env
+.env
+.env.*
+!.env.example
+.workspace-deck/
 
-# Editor directories and files
+# Editor and OS files
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -24,21 +29,15 @@ src-tauri/tauri.ios.local.conf.json
 *.njsproj
 *.sln
 *.sw?
-/release-artifacts
-CodexMonitor.zip
-.codex-worktrees/
-.codexmonitor/
-.agent/
-.agents/
-.codex/
-.claude/
-.cursor/
-public/assets/material-icons/
-archived-rundeck-project/
-sources/
+
+# Generated screenshots/artifacts
 screenshot*.png
 preview-screenshot*.png
-
-# Nix
+release-artifacts
 result
-skills-lock.json
+tauri.dev.*.conf.json
+docs/assets/generated-image*.png
+docs/assets/Copilot_*.png
+docs/assets/ChatGPT Image *.png
+docs/assets/Gemini_Generated_Image_*.png
+.tmp-chrome-profile/

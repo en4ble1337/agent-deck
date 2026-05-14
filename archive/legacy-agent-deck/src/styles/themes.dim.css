@@ -1,0 +1,79 @@
+:root[data-theme="dim"] {
+  color-scheme: dark;
+  --surface-sidebar: rgba(41, 44, 51, 0.78);
+  --surface-sidebar-opaque: rgb(41, 44, 51);
+  --surface-topbar: rgba(35, 38, 45, 0.72);
+  --surface-right-panel: rgba(36, 39, 46, 0.72);
+  --surface-composer: rgba(35, 38, 45, 0.75);
+  --surface-messages: rgba(32, 35, 42, 0.72);
+  --surface-card: rgba(255, 255, 255, 0.06);
+  --surface-card-strong: rgba(255, 255, 255, 0.14);
+  --surface-card-muted: rgba(255, 255, 255, 0.08);
+  --surface-item: rgba(255, 255, 255, 0.04);
+  --surface-control: rgba(255, 255, 255, 0.1);
+  --surface-control-hover: rgba(255, 255, 255, 0.16);
+  --surface-control-disabled: rgba(255, 255, 255, 0.06);
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --surface-active: rgba(120, 205, 255, 0.18);
+  --surface-approval: rgba(32, 35, 42, 0.8);
+  --surface-debug: rgba(32, 35, 42, 0.8);
+  --surface-command: rgba(32, 35, 42, 0.9);
+  --surface-diff-card: rgba(32, 35, 42, 0.55);
+  --surface-bubble: rgba(255, 255, 255, 0.14);
+  --surface-bubble-user: rgba(77, 153, 255, 0.5);
+  --surface-context-core: rgba(32, 35, 42, 0.92);
+  --surface-popover: rgba(32, 35, 42, 0.98);
+  --surface-glass-highlight: rgba(255, 255, 255, 0.065);
+  --surface-glass-lowlight: rgba(0, 0, 0, 0.16);
+  --accent-primary: #7a9aba;
+  --accent-secondary: #6a9a8a;
+  --accent-tertiary: #a68a5b;
+  --shadow-soft: rgba(0, 0, 0, 0.10);
+  --shadow-elevated: rgba(0, 0, 0, 0.18);
+  --shadow-accent-soft: rgba(120, 205, 255, 0.06);
+}
+
+:root[data-theme="dim"] .app.reduced-transparency {
+  --surface-sidebar: rgba(41, 44, 51, 0.96);
+  --surface-sidebar-opaque: rgb(41, 44, 51);
+  --surface-topbar: rgba(35, 38, 45, 0.96);
+  --surface-right-panel: rgba(36, 39, 46, 0.96);
+  --surface-composer: rgba(35, 38, 45, 0.96);
+  --surface-messages: rgba(32, 35, 42, 0.96);
+  --surface-card: rgba(56, 60, 70, 0.96);
+  --surface-card-strong: rgba(64, 68, 78, 0.98);
+  --surface-card-muted: rgba(50, 54, 64, 0.94);
+  --surface-item: rgba(50, 54, 64, 0.92);
+  --surface-control: rgba(68, 72, 84, 0.78);
+  --surface-control-hover: rgba(78, 84, 96, 0.84);
+  --surface-control-disabled: rgba(68, 72, 84, 0.6);
+  --surface-hover: rgba(74, 80, 92, 0.78);
+  --surface-active: rgba(120, 205, 255, 0.22);
+  --surface-approval: rgba(32, 35, 42, 0.96);
+  --surface-debug: rgba(32, 35, 42, 0.96);
+  --surface-command: rgba(32, 35, 42, 0.98);
+  --surface-diff-card: rgba(32, 35, 42, 0.94);
+  --surface-bubble: rgba(70, 75, 88, 0.92);
+  --surface-bubble-user: rgba(77, 153, 255, 0.58);
+  --surface-context-core: rgba(32, 35, 42, 0.98);
+  --surface-popover: rgba(32, 35, 42, 0.995);
+}
+
+:root[data-theme="dim"] .app.is-windows:not(.reduced-transparency) {
+  --surface-sidebar: rgba(41, 44, 51, 0.9);
+  --surface-right-panel: rgba(36, 39, 46, 0.9);
+  --surface-topbar: rgba(35, 38, 45, 0.9);
+  --surface-messages: rgba(32, 35, 42, 0.98);
+  --surface-composer: rgba(35, 38, 45, 0.98);
+  --surface-card: rgba(50, 54, 64, 0.88);
+  --surface-card-strong: rgba(60, 65, 76, 0.94);
+  --surface-card-muted: rgba(45, 49, 58, 0.88);
+  --surface-item: rgba(46, 50, 60, 0.82);
+  --surface-control: rgba(68, 72, 84, 0.66);
+  --surface-control-hover: rgba(78, 84, 96, 0.78);
+  --surface-hover: rgba(74, 80, 92, 0.7);
+  --surface-approval: rgba(32, 35, 42, 0.92);
+  --surface-debug: rgba(32, 35, 42, 0.92);
+  --surface-diff-card: rgba(32, 35, 42, 0.84);
+  --surface-context-core: rgba(32, 35, 42, 0.98);
+}

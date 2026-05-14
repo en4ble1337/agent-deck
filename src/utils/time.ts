@@ -1,58 +1,24 @@
-export function formatRelativeTime(timestamp: number) {
-  const now = Date.now();
-  const diffSeconds = Math.round((timestamp - now) / 1000);
-  const absSeconds = Math.abs(diffSeconds);
-  if (absSeconds < 5) {
+export function formatShortTime(timestamp: number | null): string {
+  if (!timestamp) {
+    return "";
+  }
+  const delta = Date.now() - timestamp;
+  if (delta < 60_000) {
     return "now";
   }
-  if (absSeconds < 60) {
-    const value = Math.max(1, Math.round(absSeconds));
-    return diffSeconds < 0 ? `${value}s ago` : `in ${value}s`;
+  if (delta < 3_600_000) {
+    return `${Math.floor(delta / 60_000)}m`;
   }
-  if (absSeconds < 60 * 60) {
-    const value = Math.max(1, Math.round(absSeconds / 60));
-    return diffSeconds < 0 ? `${value}m ago` : `in ${value}m`;
+  if (delta < 86_400_000) {
+    return `${Math.floor(delta / 3_600_000)}h`;
   }
-  const ranges: { unit: Intl.RelativeTimeFormatUnit; seconds: number }[] = [
-    { unit: "year", seconds: 60 * 60 * 24 * 365 },
-    { unit: "month", seconds: 60 * 60 * 24 * 30 },
-    { unit: "week", seconds: 60 * 60 * 24 * 7 },
-    { unit: "day", seconds: 60 * 60 * 24 },
-    { unit: "hour", seconds: 60 * 60 },
-    { unit: "minute", seconds: 60 },
-    { unit: "second", seconds: 1 },
-  ];
-  const range =
-    ranges.find((entry) => absSeconds >= entry.seconds) ||
-    ranges[ranges.length - 1];
-  if (!range) {
-    return "now";
-  }
-  const value = Math.round(diffSeconds / range.seconds);
-  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-  return formatter.format(value, range.unit);
+  return `${Math.floor(delta / 86_400_000)}d`;
 }
 
-export function formatRelativeTimeShort(timestamp: number) {
-  const now = Date.now();
-  const absSeconds = Math.abs(Math.round((timestamp - now) / 1000));
-  if (absSeconds < 60) {
-    return "now";
+export function compactPath(path: string): string {
+  const parts = path.split(/[\\/]/).filter(Boolean);
+  if (parts.length <= 2) {
+    return path;
   }
-  if (absSeconds < 60 * 60) {
-    return `${Math.max(1, Math.round(absSeconds / 60))}m`;
-  }
-  if (absSeconds < 60 * 60 * 24) {
-    return `${Math.max(1, Math.round(absSeconds / (60 * 60)))}h`;
-  }
-  if (absSeconds < 60 * 60 * 24 * 7) {
-    return `${Math.max(1, Math.round(absSeconds / (60 * 60 * 24)))}d`;
-  }
-  if (absSeconds < 60 * 60 * 24 * 30) {
-    return `${Math.max(1, Math.round(absSeconds / (60 * 60 * 24 * 7)))}w`;
-  }
-  if (absSeconds < 60 * 60 * 24 * 365) {
-    return `${Math.max(1, Math.round(absSeconds / (60 * 60 * 24 * 30)))}mo`;
-  }
-  return `${Math.max(1, Math.round(absSeconds / (60 * 60 * 24 * 365)))}y`;
+  return `${parts.at(-2)}/${parts.at(-1)}`;
 }
